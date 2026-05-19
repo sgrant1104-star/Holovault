@@ -114,6 +114,19 @@
       flex-wrap: wrap;
     }
 
+    .product-card .p-delete-btn {
+      margin-left: auto;
+      background: transparent;
+      color: #f87171;
+      border: 1px solid #f87171;
+      border-radius: 5px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: background 0.2s, color 0.2s;
+    }
+    .product-card .p-delete-btn:hover { background: #f87171; color: #fff; }
+
     .product-card .p-mult-label { font-size: 0.75rem; color: #888; }
 
     .product-card .p-mult-input {
@@ -420,16 +433,32 @@
         return;
       }
       container.innerHTML = products.map((p) => `
-        <div class="product-card">
+        <div class="product-card" id="pcard-${p.productId}">
           <div class="p-title">${escHtml(p.title)}</div>
           <div class="p-meta">
             <span class="p-mult-label">×</span>
             <input class="p-mult-input" type="number" id="pmult-${p.productId}" value="${p.multiplier}" min="0.01" max="10" step="0.05" />
             <button class="p-save-btn" onclick="saveMultiplier('${p.productId}')">Save</button>
+            <button class="p-delete-btn" onclick="deleteProduct('${p.productId}', '${escHtml(p.title)}')">✕ Delete</button>
           </div>
         </div>`).join('');
     } catch (err) {
       container.innerHTML = `<div class="empty-state">Error: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  async function deleteProduct(productId, title) {
+    if (!confirm(`Delete "${title}" from Shopify? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      document.getElementById(`pcard-${productId}`)?.remove();
+      const count = document.getElementById('product-count');
+      count.textContent = Math.max(0, parseInt(count.textContent) - 1);
+      showToast(`"${title}" deleted from Shopify.`, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   }
 

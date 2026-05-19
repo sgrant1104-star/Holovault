@@ -10,7 +10,7 @@ const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
 const { searchCards, closeBrowser } = require('./collectr');
-const { createProduct, getManagedProducts, setMultiplier } = require('./shopify');
+const { createProduct, getManagedProducts, setMultiplier, deleteProduct } = require('./shopify');
 const { syncAllPrices } = require('./sync-prices');
 
 function getConfig() {
@@ -97,6 +97,17 @@ app.get('/api/products', requireToken, async (req, res) => {
     res.json({ products });
   } catch (err) {
     console.error('Products error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/products/:id', requireToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await deleteProduct(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

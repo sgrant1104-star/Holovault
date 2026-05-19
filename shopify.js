@@ -183,4 +183,12 @@ function buildTags(card) {
   return tags.join(', ');
 }
 
-module.exports = { createProduct, updateProductPrice, getManagedProducts, setMultiplier };
+/**
+ * Delete a product from Shopify.
+ */
+async function deleteProduct(productId) {
+  const { client } = getClient();
+  await client.delete(`/products/${productId}.json`);
+}
+
+module.exports = { createProduct, updateProductPrice, getManagedProducts, setMultiplier, deleteProduct };
