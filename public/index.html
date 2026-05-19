@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Holo Vault — Card Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      border-bottom: 2px solid #e63946;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    header h1 span { color: #e63946; }
+
+    .sync-btn {
+      background: #e63946;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .sync-btn:hover { background: #c1121f; }
+    .sync-btn:disabled { background: #555; cursor: not-allowed; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    /* ── Search Section ── */
+    .search-section {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .search-section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #fff; }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .search-row input {
+      flex: 1;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #e0e0e0;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-row input:focus { border-color: #e63946; }
+
+    .search-row button {
+      background: #e63946;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .search-row button:hover { background: #c1121f; }
+    .search-row button:disabled { background: #555; cursor: not-allowed; }
+
+    /* ── Search Results ── */
+    #search-results {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .card-item {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+      cursor: pointer;
+    }
+    .card-item:hover { border-color: #e63946; transform: translateY(-2px); }
+
+    .card-item img {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      background: #1a1a1a;
+    }
+
+    .card-info { padding: 10px; }
+    .card-info .card-name { font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 4px; line-height: 1.3; }
+    .card-info .card-set { font-size: 0.75rem; color: #888; margin-bottom: 6px; }
+    .card-info .card-price { font-size: 1rem; font-weight: 700; color: #4ade80; }
+    .card-info .card-change { font-size: 0.75rem; margin-top: 2px; }
+    .card-change.up { color: #4ade80; }
+    .card-change.down { color: #f87171; }
+
+    .add-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .add-row input[type="number"] {
+      width: 70px;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: #e0e0e0;
+      font-size: 0.8rem;
+    }
+
+    .add-row label { font-size: 0.75rem; color: #888; }
+
+    .add-card-btn {
+      width: 100%;
+      margin-top: 6px;
+      background: #1d3557;
+      color: #fff;
+      border: 1px solid #457b9d;
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .add-card-btn:hover { background: #457b9d; }
+    .add-card-btn:disabled { background: #333; border-color: #444; cursor: not-allowed; }
+    .add-card-btn.added { background: #166534; border-color: #4ade80; }
+
+    /* ── Managed Products ── */
+    .products-section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #fff; }
+
+    #products-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .product-row {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .product-row .product-title { flex: 1; font-weight: 600; font-size: 0.95rem; }
+    .product-row .product-price { color: #4ade80; font-weight: 700; min-width: 80px; text-align: right; }
+
+    .multiplier-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .multiplier-row label { font-size: 0.8rem; color: #888; }
+    .multiplier-row input {
+      width: 70px;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+    }
+    .multiplier-row button {
+      background: #1d3557;
+      color: #fff;
+      border: 1px solid #457b9d;
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+    }
+    .multiplier-row button:hover { background: #457b9d; }
+
+    /* ── Status / Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a1a2e;
+      border: 1px solid #457b9d;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; }
+    #toast.error { border-color: #e63946; }
+    #toast.success { border-color: #4ade80; }
+
+    .empty-state { color: #555; text-align: center; padding: 32px; font-size: 0.95rem; }
+
+    .loading { color: #888; text-align: center; padding: 20px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Holo Vault <span>Card Manager</span></h1>
+  <button class="sync-btn" id="sync-btn" onclick="triggerSync()">⟳ Sync Prices Now</button>
+</header>
+
+<div class="container">
+
+  <!-- Search & Add -->
+  <div class="search-section">
+    <h2>Search &amp; Add Card from Collectr</h2>
+    <div class="search-row">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="Search card name (e.g. Charizard, Pikachu ex...)"
+        onkeydown="if(event.key==='Enter') doSearch()"
+      />
+      <button id="search-btn" onclick="doSearch()">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Managed Products -->
+  <div class="products-section">
+    <h2>Managed Products in Shopify</h2>
+    <div id="products-list"><div class="loading">Loading...</div></div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let searchResults = [];
+
+  // ── Search ─────────────────────────────────────────────────────────────────
+  async function doSearch() {
+    const q = document.getElementById('search-input').value.trim();
+    if (q.length < 2) return showToast('Enter at least 2 characters.', 'error');
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    document.getElementById('search-results').innerHTML = '<div class="loading">Fetching from Collectr...</div>';
+
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Search failed');
+
+      searchResults = data.cards || [];
+      renderSearchResults(searchResults);
+    } catch (err) {
+      document.getElementById('search-results').innerHTML = '';
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Search';
+    }
+  }
+
+  function renderSearchResults(cards) {
+    const container = document.getElementById('search-results');
+    if (cards.length === 0) {
+      container.innerHTML = '<div class="empty-state">No cards found. Try a different search.</div>';
+      return;
+    }
+
+    container.innerHTML = cards.map((card, i) => {
+      const changeClass = card.priceChangePct >= 0 ? 'up' : 'down';
+      const changeSign = card.priceChangePct >= 0 ? '+' : '';
+      const imgSrc = card.imageUrl || 'https://via.placeholder.com/180x240?text=No+Image';
+
+      return `
+        <div class="card-item">
+          <img src="${escHtml(imgSrc)}" alt="${escHtml(card.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/180x240?text=No+Image'" />
+          <div class="card-info">
+            <div class="card-name">${escHtml(card.name)}</div>
+            <div class="card-set">${escHtml(card.setName || '')} ${card.cardNumber ? '#' + escHtml(card.cardNumber) : ''}</div>
+            <div class="card-price">$${card.price.toFixed(2)}</div>
+            <div class="card-change ${changeClass}">${changeSign}${card.priceChangePct.toFixed(2)}%</div>
+            <div class="add-row">
+              <label>×</label>
+              <input type="number" id="mult-${i}" value="1.00" min="0.01" max="10" step="0.05" title="Price multiplier" />
+            </div>
+            <button class="add-card-btn" id="add-btn-${i}" onclick="addCard(${i})">+ Add to Shopify</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function addCard(index) {
+    const card = searchResults[index];
+    const multiplier = parseFloat(document.getElementById(`mult-${index}`).value) || 1.0;
+    const btn = document.getElementById(`add-btn-${index}`);
+
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+
+    try {
+      const res = await fetch('/api/add-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card, multiplier }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Failed to add card');
+
+      btn.textContent = '✓ Added';
+      btn.classList.add('added');
+      showToast(`"${card.name}" added to Shopify at $${data.product.price}`, 'success');
+      loadProducts(); // refresh the list
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = '+ Add to Shopify';
+      showToast(err.message, 'error');
+    }
+  }
+
+  // ── Products List ──────────────────────────────────────────────────────────
+  async function loadProducts() {
+    const container = document.getElementById('products-list');
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Failed to load products');
+
+      const products = data.products || [];
+      if (products.length === 0) {
+        container.innerHTML = '<div class="empty-state">No managed products yet. Search and add cards above.</div>';
+        return;
+      }
+
+      container.innerHTML = products.map((p) => `
+        <div class="product-row">
+          <div class="product-title">${escHtml(p.title)}</div>
+          <div class="multiplier-row">
+            <label>Multiplier:</label>
+            <input type="number" id="pmult-${p.productId}" value="${p.multiplier}" min="0.01" max="10" step="0.05" />
+            <button onclick="saveMultiplier('${p.productId}')">Save</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">Error loading products: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  async function saveMultiplier(productId) {
+    const input = document.getElementById(`pmult-${productId}`);
+    const multiplier = parseFloat(input.value);
+    if (isNaN(multiplier) || multiplier <= 0) return showToast('Invalid multiplier value.', 'error');
+
+    try {
+      const res = await fetch(`/api/products/${productId}/multiplier`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ multiplier }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      showToast('Multiplier updated!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // ── Sync ───────────────────────────────────────────────────────────────────
+  async function triggerSync() {
+    const btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      showToast('Price sync started! Check server logs for progress.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '⟳ Sync Prices Now';
+      }, 3000);
+    }
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.className = ''; }, 4000);
+  }
+
+  // ── Utils ──────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  checkStatus();
+  loadProducts();
+
+  async function checkStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      if (!data.connected) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:#7c2d12;border:1px solid #ea580c;color:#fff;padding:14px 24px;text-align:center;font-size:0.95rem;';
+        banner.innerHTML = '⚠️ Shopify not connected. <a href="/auth" style="color:#fbbf24;font-weight:700;">Click here to connect your store</a> before adding cards.';
+        document.body.insertBefore(banner, document.body.firstChild);
+      }
+    } catch (_) {}
+  }
+</script>
+</body>
+</html>

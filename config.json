@@ -1,0 +1,13 @@
+{
+  "shopify": {
+    "store": "fxtvvc-5c.myshopify.com",
+    "clientId": "ce4551e95cd11fb91abc9d0d1e80137a",
+    "clientSecret": "",
+    "accessToken": "",
+    "apiVersion": "2024-04"
+  },
+  "sync": {
+    "defaultMultiplier": 1.0,
+    "cronSchedule": "0 6 * * *"
+  }
+}
