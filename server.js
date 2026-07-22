@@ -1,3 +1,4 @@
+// Test change: verifying commit/push/deploy pipeline.
 /**
  * server.js
  * Express server — serves the admin UI and API endpoints.
