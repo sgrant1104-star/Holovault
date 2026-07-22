@@ -4,111 +4,377 @@
  *
  * Collectr uses Next.js SSR. The search results are embedded as escaped JSON
  * inside self.__next_f.push([1,"..."]) script tags in the HTML.
- *
- * Confirmed format from curl:
- *   {\"data\":[{\"product_id\":\"684462\",\"catalog_category\":\"3\",...}]
- *
- * Search URL: https://app.getcollectr.com/?query=charizard
  */
 
 const axios = require('axios');
+const { normalizeSubType, pickMatchingCard } = require('./collectr-match');
 
 const COLLECTR_BASE = 'https://app.getcollectr.com';
+let playwrightUnavailable = false;
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
 };
 
-/**
- * Search for cards on Collectr by name.
- */
-async function searchCards(query) {
-  const url = `${COLLECTR_BASE}/?query=${encodeURIComponent(query)}`;
-  console.log(`[Collectr] Fetching: ${url}`);
+function padCardNumberQuery(query) {
+  const m = String(query || '').trim().match(/^(\d{1,4})\s*\/\s*(\d{2,4})$/);
+  if (!m) return null;
+  const left = m[1].padStart(3, '0');
+  const right = m[2].padStart(3, '0');
+  return `${left}/${right}`;
+}
 
-  const res = await axios.get(url, { headers: HEADERS, timeout: 15000 });
-  return extractCardsFromHtml(res.data);
+/** e.g. 43/86 → [43/86, 043/086] for Collectr search */
+function searchQueriesFor(query) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  const out = [q];
+  const padded = padCardNumberQuery(q);
+  if (padded && padded !== q) out.push(padded);
+  return [...new Set(out)];
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Get fresh price for a card by searching its name.
+ * A one-off network blip (timeout, connection reset, Collectr briefly 5xx-ing)
+ * shouldn't fail a whole day's price sync for that card. This retries a
+ * couple of times with a short backoff before giving up — but only for
+ * actual network/server errors, never for "the search just came back empty,"
+ * which isn't a failure and shouldn't be retried as if it were one.
  */
-async function getCardDetails(collectrUrl) {
-  const slug = collectrUrl.split('/').pop() || '';
-  const query = slug.replace(/-/g, ' ');
-  const cards = await searchCards(query);
-  return cards.length > 0 ? cards[0] : null;
+async function fetchCardsForQuery(query, retriesLeft = 2) {
+  const url = `${COLLECTR_BASE}/?query=${encodeURIComponent(query)}`;
+  console.log(`[Collectr] Fetching: ${url}`);
+  try {
+    const res = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+    return extractCardsFromHtml(res.data);
+  } catch (err) {
+    const isTransient =
+      err.code === 'ECONNRESET' ||
+      err.code === 'ETIMEDOUT' ||
+      err.code === 'ECONNABORTED' ||
+      (err.response && err.response.status >= 500);
+
+    if (isTransient && retriesLeft > 0) {
+      const waitMs = 1000 * (3 - retriesLeft); // 1s, then 2s
+      console.warn(`[Collectr] Transient error (${err.code || err.response?.status}), retrying in ${waitMs}ms…`);
+      await sleep(waitMs);
+      return fetchCardsForQuery(query, retriesLeft - 1);
+    }
+    throw err;
+  }
+}
+
+async function searchCardsViaBrowser(query) {
+  if (playwrightUnavailable) return [];
+
+  // Optional local fallback when Collectr HTML has no embedded data.
+  let chromium;
+  try {
+    ({ chromium } = require('playwright'));
+  } catch (e) {
+    console.warn('[Collectr] Playwright not installed — browser fallback skipped');
+    return [];
+  }
+
+  const url = `${COLLECTR_BASE}/?query=${encodeURIComponent(query)}`;
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (err) {
+    playwrightUnavailable = true;
+    console.warn('[Collectr] Playwright browsers missing — run: npx playwright install chromium');
+    console.warn('[Collectr]', err.message);
+    return [];
+  }
+  const page = await browser.newPage();
+
+  let products = null;
+  const isProductPayload = (obj) => {
+    if (!obj) return false;
+    // Common shapes: { data: [...] } or { data: { data: [...] } }
+    const arr =
+      (Array.isArray(obj.data) && obj.data) ||
+      (obj.data && Array.isArray(obj.data.data) && obj.data.data) ||
+      null;
+    if (!arr || arr.length === 0) return false;
+    const first = arr[0];
+    return first && (first.product_id || first.card_number || first.product_name);
+  };
+
+  page.on('response', async (res) => {
+    if (products) return;
+    const u = res.url();
+    // Limit parsing to likely data endpoints; still handle mislabeled content-types.
+    if (!/(api|graphql|search|products|catalog)/i.test(u)) return;
+    try {
+      const json = await res.json();
+      if (isProductPayload(json)) {
+        products =
+          (Array.isArray(json.data) && json.data) ||
+          (json.data && Array.isArray(json.data.data) && json.data.data) ||
+          null;
+      }
+    } catch {
+      try {
+        const body = await res.text();
+        if (!body || !body.includes('product_id')) return;
+        // Try to locate a JSON array after "data":
+        const idx = body.indexOf('"data":');
+        if (idx === -1) return;
+        const start = idx + '"data":'.length;
+        // bracket match for array
+        let depth = 0;
+        let i = start;
+        while (i < body.length) {
+          if (body[i] === '[') depth++;
+          if (body[i] === ']') {
+            depth--;
+            if (depth === 0) {
+              i++;
+              break;
+            }
+          }
+          i++;
+        }
+        if (depth !== 0) return;
+        const raw = body.substring(start, i);
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length && (arr[0].product_id || arr[0].card_number)) {
+          products = arr;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  try {
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(1500);
+  } finally {
+    await browser.close();
+  }
+
+  if (!products) {
+    return [];
+  }
+  console.log(`[Collectr] Found ${products.length} products (browser)`);
+  return products.map(normalizeProduct);
+}
+
+/**
+ * Search for cards on Collectr by name or card number.
+ * Uses HTTP first (works on Railway). Playwright is optional local fallback only.
+ */
+async function searchCards(query) {
+  const queries = searchQueriesFor(query);
+  if (!queries.length) return [];
+
+  let lastErr = null;
+  for (const q of queries) {
+    try {
+      const cards = await fetchCardsForQuery(q);
+      if (cards.length) return cards;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[Collectr] Query "${q}" failed after retries: ${err.message}`);
+    }
+  }
+
+  for (const q of queries) {
+    const viaBrowser = await searchCardsViaBrowser(q);
+    if (viaBrowser.length) return viaBrowser;
+  }
+
+  if (lastErr) {
+    console.warn(`[Collectr] All queries for "${query}" failed; returning no results.`);
+  }
+  return [];
+}
+
+/**
+ * Parse productId (and optional set slug) from a Collectr product URL.
+ */
+function parseCollectrUrl(collectrUrl) {
+  if (!collectrUrl) return { productId: null, groupSlug: null };
+  const productId = collectrUrl.match(/[?&]productId=([^&]+)/i)?.[1] || null;
+  const slugMatch = collectrUrl.match(/\/([^/?]+)\?productId=/i);
+  const groupSlug = slugMatch ? slugMatch[1] : null;
+  return { productId, groupSlug };
+}
+
+/**
+ * Find one card in search results by Collectr product_id.
+ */
+function findCardById(cards, productId, subType = null) {
+  if (!productId || !cards?.length) return null;
+  const matches = cards.filter((c) => String(c.collectrId) === String(productId));
+  if (matches.length === 0) return null;
+  if (subType) {
+    const norm = (s) =>
+      (s || '')
+        .trim()
+        .toLowerCase()
+        .replace(/_/g, ' ');
+    const subMatch = matches.find((c) => norm(c.subType) === norm(subType));
+    if (subMatch) return subMatch;
+  }
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * Resolve the correct Collectr listing for price sync.
+ * Step 1: find by card number (e.g. 058/159)
+ * Step 2: narrow by finish (e.g. Normal)
+ * Never returns a loose / first search hit.
+ */
+async function resolveCardForSync({ collectrId, collectrUrl, title, subType, cardNumber }) {
+  const { productId: urlProductId, groupSlug } = parseCollectrUrl(collectrUrl);
+  const criteria = {
+    collectrId: collectrId || urlProductId,
+    subType,
+    cardNumber,
+  };
+
+  const tryPool = (cards, source) => {
+    const match = pickMatchingCard(cards, criteria);
+    if (match) {
+      console.log(
+        `[Collectr] Matched #${match.cardNumber || '?'} / ${match.subType || '?'} ($${match.price}) via ${source}`
+      );
+      return match;
+    }
+    return null;
+  };
+
+  if (collectrUrl) {
+    const fromUrl = await fetchCardsFromUrl(collectrUrl);
+    const hit = tryPool(fromUrl, 'collectr_url');
+    if (hit) return hit;
+  }
+
+  const baseTitle = title?.replace(/\s*—\s*[^—]+$/, '').trim() || '';
+  const queries = [];
+  if (cardNumber && baseTitle) queries.push(`${baseTitle} ${cardNumber}`);
+  if (cardNumber) queries.push(String(cardNumber).replace(/^#/, ''));
+  if (baseTitle) queries.push(baseTitle);
+  if (title && title !== baseTitle) queries.push(title);
+  if (groupSlug) queries.push(groupSlug.replace(/-/g, ' '));
+
+  const seen = new Set();
+  for (const q of queries) {
+    if (!q || seen.has(q)) continue;
+    seen.add(q);
+    const cards = await searchCards(q);
+    const hit = tryPool(cards, `search "${q}"`);
+    if (hit) return hit;
+  }
+
+  console.warn(
+    `[Collectr] No match for #${cardNumber || '?'} finish="${subType || '?'}" id=${criteria.collectrId || '?'}`
+  );
+  return null;
+}
+
+async function fetchCardsFromUrl(collectrUrl, retriesLeft = 2) {
+  if (!collectrUrl || !collectrUrl.includes('getcollectr.com')) return [];
+  try {
+    console.log(`[Collectr] Fetching set page: ${collectrUrl}`);
+    const res = await axios.get(collectrUrl, { headers: HEADERS, timeout: 15000 });
+    return extractCardsFromHtml(res.data);
+  } catch (err) {
+    const isTransient =
+      err.code === 'ECONNRESET' ||
+      err.code === 'ETIMEDOUT' ||
+      err.code === 'ECONNABORTED' ||
+      (err.response && err.response.status >= 500);
+    if (isTransient && retriesLeft > 0) {
+      const waitMs = 1000 * (3 - retriesLeft);
+      await sleep(waitMs);
+      return fetchCardsFromUrl(collectrUrl, retriesLeft - 1);
+    }
+    console.warn('[Collectr] Set page fetch failed:', err.message);
+    return [];
+  }
+}
+
+/**
+ * @deprecated Use resolveCardForSync — kept for compatibility.
+ */
+async function getCardDetails(collectrUrl, hintTitle) {
+  const { productId } = parseCollectrUrl(collectrUrl);
+  return resolveCardForSync({
+    collectrId: productId,
+    collectrUrl,
+    title: hintTitle,
+  });
 }
 
 /**
  * Extract cards from the Next.js SSR HTML.
- *
- * The HTML contains script tags like:
- *   self.__next_f.push([1,"...escaped json..."])
- *
- * Inside those, the product array looks like:
- *   {\"data\":[{\"product_id\":\"123\",\"catalog_category\":\"3\",...}]
  */
 function extractCardsFromHtml(html) {
   try {
-    // Confirmed format from curl:
-    // \\"pages\\":[{\\"data\\":[{\\"product_id\\":\\"684462\\",...
-    // We find the marker, grab everything from [ to the matching ]
-    // then unescape \\" → " to get valid JSON
+    // Collectr moved to Next.js App Router + React Flight streaming.
+    // Product JSON is embedded inside self.__next_f.push([1,"..."]) payload strings.
+    const payloads = [];
+    const re = /self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)/g;
+    let m;
+    while ((m = re.exec(html))) {
+      payloads.push(m[1]);
+    }
 
-    const MARKER = '\\"data\\":[{\\"product_id\\"';
-    const markerIdx = html.indexOf(MARKER);
+    if (!payloads.length) {
+      console.warn('[Collectr] Next.js flight payload not found in HTML');
+      return [];
+    }
 
+    const flight = payloads
+      .join('')
+      .replace(/\\n/g, '\n')
+      .replace(/\\"/g, '"')
+      .replace(/\\u0026/g, '&')
+      .replace(/\\u003c/g, '<')
+      .replace(/\\u003e/g, '>')
+      .replace(/\\\\/g, '\\');
+
+    const MARKER = '"data":[{"product_id"';
+    const markerIdx = flight.indexOf(MARKER);
     if (markerIdx === -1) {
       console.warn('[Collectr] Product data marker not found in HTML');
       return [];
     }
 
-    // The [ is right at the end of \\"data\\":
-    // marker is: \"data\":[{\"product_id\"
-    // so arrayStart = markerIdx + length of \"data\":
-    const arrayStart = markerIdx + '\\"data\\":'.length;
+    const arrayStart = markerIdx + '"data":'.length;
 
-    // Walk forward counting [ and ] but treating \" as a string toggle
     let depth = 0;
     let inString = false;
     let i = arrayStart;
 
-    while (i < html.length) {
-      // \" = escaped quote → toggle string mode
-      if (html[i] === '\\' && html[i+1] === '"') {
-        inString = !inString;
-        i += 2;
-        continue;
-      }
-      // \\ = escaped backslash → skip
-      if (html[i] === '\\' && html[i+1] === '\\') {
-        i += 2;
-        continue;
-      }
-
+    while (i < flight.length) {
+      const ch = flight[i];
+      if (ch === '"' && flight[i - 1] !== '\\') inString = !inString;
       if (!inString) {
-        if (html[i] === '[') depth++;
-        if (html[i] === ']') {
+        if (ch === '[') depth++;
+        if (ch === ']') {
           depth--;
-          if (depth === 0) { i++; break; }
+          if (depth === 0) {
+            i++;
+            break;
+          }
         }
       }
       i++;
     }
 
-    const rawEscaped = html.substring(arrayStart, i);
-
-    // Unescape: \" → " (each backslash+quote becomes just a quote)
-    const unescaped = rawEscaped
-      .replace(/\\"/g, '"')
-      .replace(/\\u0026/g, '&')
-      .replace(/\\u003c/g, '<')
-      .replace(/\\u003e/g, '>');
-
-    const products = JSON.parse(unescaped);
+    const raw = flight.substring(arrayStart, i);
+    const products = JSON.parse(raw);
 
     if (!Array.isArray(products) || products.length === 0) {
       console.warn('[Collectr] Parsed empty product array');
@@ -117,13 +383,8 @@ function extractCardsFromHtml(html) {
 
     console.log(`[Collectr] Found ${products.length} products`);
     return products.map(normalizeProduct);
-
   } catch (err) {
     console.error('[Collectr] Parse error:', err.message);
-    const debugIdx = html.indexOf('\\"data\\":[{\\"product_id\\"');
-    if (debugIdx !== -1) {
-      console.error('[Collectr] Raw sample:', html.substring(debugIdx, debugIdx + 100));
-    }
     return [];
   }
 }
@@ -136,9 +397,10 @@ function normalizeProduct(item) {
   const priceChange = parseFloat(item.market_price_diff || 0);
   const priceChangePct = parseFloat(item.market_price_percentage_diff || 0);
 
-  const collectrUrl = item.web_slug_group && item.web_slug_category
-    ? `${COLLECTR_BASE}/sets/category/${item.web_slug_category}/${item.web_slug_group}?productId=${item.product_id}`
-    : '';
+  const collectrUrl =
+    item.web_slug_group && item.web_slug_category
+      ? `${COLLECTR_BASE}/sets/category/${item.web_slug_category}/${item.web_slug_group}?productId=${item.product_id}`
+      : '';
 
   return {
     collectrId: item.product_id || null,
@@ -156,8 +418,22 @@ function normalizeProduct(item) {
   };
 }
 
-async function closeBrowser() {
-  // No-op: no browser used
+function formatSubTypeLabel(subType) {
+  if (!subType) return '';
+  return subType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-module.exports = { searchCards, getCardDetails, closeBrowser };
+async function closeBrowser() {
+  // No-op
+}
+
+module.exports = {
+  searchCards,
+  getCardDetails,
+  resolveCardForSync,
+  parseCollectrUrl,
+  formatSubTypeLabel,
+  closeBrowser,
+};

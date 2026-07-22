@@ -2,23 +2,29 @@
 
 Automatically syncs Pokémon card prices from Collectr to your Shopify store.
 
+Deployed on **Railway** from this repo (`justin-brown-hr/holovault`). See `.env.example` for env vars.
+
+**Railway shows "GitHub Repo not found"?** See [RAILWAY.md](./RAILWAY.md) — reconnect repo, clear root directory `app`, redeploy.
+
 ---
 
 ## Setup (One Time)
 
-### 1. Get Your Shopify Admin API Token
+### 1. Shopify credentials (auto-refresh)
 
-1. Go to https://admin.shopify.com/store/holo-vault-3/settings/apps
-2. Click **Develop apps** → **Create an app**
-3. Name it `Price Sync`
-4. Click **Configure Admin API scopes** and enable:
-   - `write_products`
-   - `read_products`
-5. Click **Install app** → copy the **Admin API access token**
-6. Open `config.json` and paste it:
-   ```json
-   "accessToken": "shpat_xxxxxxxxxxxxxxxxxxxx"
-   ```
+Use your **Dev Dashboard** app (e.g. Pricecheck) on `holo-vault-3`:
+
+1. **Versions** → enable scopes: `read_products`, `write_products`, `read_locations`, `read_inventory`, `write_inventory`
+2. Install the app on the store
+3. Copy **Client ID** and **Client secret** from the app settings
+4. Copy `.env.example` to `.env` and set:
+   - `SHOPIFY_STORE=holo-vault-3.myshopify.com`
+   - `SHOPIFY_CLIENT_ID=…`
+   - `SHOPIFY_CLIENT_SECRET=…`
+
+The server fetches a new access token automatically (~24h lifetime) — you do **not** need to paste a new `shpat_` daily.
+
+Optional: set `SHOPIFY_TOKEN` instead if you prefer a static token (manual refresh when it expires).
 
 ### 2. Install Dependencies
 
@@ -40,19 +46,25 @@ Open http://localhost:3000 in your browser.
 
 ## How to Use
 
-### Add a Card
-1. Type a card name in the search box (e.g. "Charizard ex")
-2. Results load from Collectr with live prices
-3. Set a multiplier (e.g. `0.8` = sell at 80% of market price, `1.0` = exact market price)
-4. Click **+ Add to Shopify** — the card is created as a product automatically
+**Full guide:** [USAGE.md](./USAGE.md)
 
-### Daily Price Sync
-- Prices update automatically every day at **6:00 AM**
-- You can also click **⟳ Sync Prices Now** in the admin UI to sync immediately
+### Add many cards (bulk — recommended)
+1. Search Collectr (set name or card name)
+2. Tick cards (new ones are auto-selected)
+3. Click **Import selected (N)** — wait for the progress modal
+4. For multiple searches: use **Add selected to queue**, then **Import queue to Shopify**
 
-### Change a Card's Multiplier
-- In the **Managed Products** list, change the multiplier and click **Save**
-- The new price applies on the next sync
+~3 seconds per card. Do **not** click each **+ Add to Shopify** unless you only need one card.
+
+### Add one card
+Search → set **×** → **+ Add to Shopify** on that row.
+
+### Daily price sync
+- Automatic cron (default **6:00 UTC**)
+- Or click **⟳ Sync Prices Now** in the UI
+
+### Change multiplier
+Left panel → edit **×** → **Save** → run sync or wait for cron.
 
 ---
 
@@ -77,7 +89,7 @@ app/
 ├── collectr.js        # Scrapes Collectr for card data & prices
 ├── shopify.js         # Shopify Admin API wrapper
 ├── sync-prices.js     # Daily price sync logic
-├── config.json        # Your Shopify credentials + settings
+├── .env               # Shopify credentials (local / Railway Variables)
 ├── public/
 │   └── index.html     # Admin UI (search, add, manage)
 └── package.json
@@ -89,21 +101,9 @@ shopify-theme/
 
 ---
 
-## Config Options
+## Environment variables
 
-```json
-{
-  "shopify": {
-    "store": "holo-vault-3.myshopify.com",
-    "accessToken": "YOUR_TOKEN",
-    "apiVersion": "2024-04"
-  },
-  "sync": {
-    "defaultMultiplier": 1.0,
-    "cronSchedule": "0 6 * * *"
-  }
-}
-```
+See `.env.example`. On Railway, set the same keys in **Variables**.
 
-- `defaultMultiplier` — default price multiplier for new cards (1.0 = 100% of market)
-- `cronSchedule` — cron expression for daily sync (default: 6am every day)
+- `DEFAULT_MULTIPLIER` — default for new cards (1.0 = 100% of market)
+- `CRON_SCHEDULE` — daily sync (default `0 6 * * *`)

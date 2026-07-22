@@ -1,4 +1,5 @@
 node_modules/
 .oauth_state
-# config.json contains secrets — use environment variables in production
-# config.json
+.env
+config.json
+docs

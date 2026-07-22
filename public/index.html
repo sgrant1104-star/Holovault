@@ -12,55 +12,363 @@
       background: #0f0f0f;
       color: #e0e0e0;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
       background: #1a1a2e;
       border-bottom: 2px solid #e63946;
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
 
-    header h1 {
-      font-size: 1.4rem;
-      color: #fff;
-      letter-spacing: 1px;
-    }
-
+    header h1 { font-size: 1.3rem; color: #fff; letter-spacing: 1px; }
     header h1 span { color: #e63946; }
 
     .sync-btn {
       background: #e63946;
       color: #fff;
       border: none;
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
       transition: background 0.2s;
     }
     .sync-btn:hover { background: #c1121f; }
     .sync-btn:disabled { background: #555; cursor: not-allowed; }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .help-link {
+      color: #93c5fd;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 12px;
+      border: 1px solid #334155;
+      border-radius: 6px;
+    }
+    .help-link:hover { background: #1e293b; color: #fff; }
+    .delete-all-btn {
+      background: transparent;
+      color: #f87171;
+      border: 1px solid #7f1d1d;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .delete-all-btn:hover { background: #450a0a; border-color: #f87171; }
+    .delete-all-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* ── Search Section ── */
-    .search-section {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 32px;
+    /* ── Split Layout ── */
+    .split {
+      display: grid;
+      grid-template-columns: minmax(520px, 44%) 1fr;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 53px);
     }
 
-    .search-section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #fff; }
+    /* ── LEFT PANEL — Managed Products ── */
+    .left-panel {
+      background: #111;
+      border-right: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .left-panel-header {
+      padding: 16px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .left-panel-header__row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .left-panel-header h2 { font-size: 0.95rem; color: #fff; }
+
+    .delete-all-panel-btn {
+      width: 100%;
+      background: #2a0a0a;
+      color: #fca5a5;
+      border: 1px solid #7f1d1d;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .delete-all-panel-btn:hover { background: #450a0a; }
+    .delete-all-panel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .left-panel-header span {
+      background: #1d3557;
+      color: #60a5fa;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .left-panel-sort-hint {
+      font-size: 0.72rem;
+      color: #666;
+      margin: -4px 0 0;
+    }
+
+    .products-search-row {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .products-search-row input {
+      flex: 1;
+      min-width: 0;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: #e0e0e0;
+      font-size: 0.82rem;
+      outline: none;
+    }
+    .products-search-row input:focus { border-color: #457b9d; }
+    .products-search-row input::placeholder { color: #666; }
+
+    .products-search-clear {
+      background: #222;
+      color: #aaa;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 0 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .products-search-clear:hover { color: #fff; border-color: #666; }
+
+    #products-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      align-content: start;
+    }
+
+    .products-pagination {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-top: 1px solid #222;
+      background: #0d0d0d;
+      font-size: 0.78rem;
+      color: #888;
+    }
+
+    .products-pagination button {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      border: 1px solid #333;
+      border-radius: 5px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .products-pagination button:hover:not(:disabled) { border-color: #e63946; color: #fff; }
+    .products-pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .product-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 5px;
+      padding: 5px;
+      transition: border-color 0.2s;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .product-card:hover { border-color: #444; }
+
+    .product-card .p-thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #111;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .product-card .p-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .product-card .p-thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-size: 0.55rem;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .product-card .p-price {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #86efac;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+
+    .product-card .p-body {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .product-card .p-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .product-card .p-qty {
+      font-size: 0.52rem;
+      color: #86efac;
+      font-weight: 600;
+      margin-bottom: 0;
+    }
+
+    .product-card .p-num {
+      font-size: 0.5rem;
+      color: #c4b5fd;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .product-card .p-sync-btn,
+    .product-card .p-save-btn,
+    .product-card .p-delete-btn {
+      min-height: 26px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .product-card .p-sync-btn {
+      background: #14532d;
+      color: #86efac;
+      border: 1px solid #16a34a;
+    }
+    .product-card .p-sync-btn:hover { background: #166534; }
+    .product-card .p-sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .product-card .p-meta {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .product-card .p-delete-btn {
+      margin-left: auto;
+      background: transparent;
+      color: #f87171;
+      border: 1px solid #f87171;
+      min-width: 28px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .product-card .p-delete-btn:hover { background: #f87171; color: #fff; }
+
+    .product-card .p-mult-label { font-size: 0.72rem; color: #888; }
+
+    .product-card .p-mult-input {
+      width: 44px;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 5px;
+      padding: 4px 4px;
+      color: #e0e0e0;
+      font-size: 0.72rem;
+      min-height: 26px;
+    }
+
+    .product-card .p-save-btn {
+      background: #1d3557;
+      color: #fff;
+      border: 1px solid #457b9d;
+      transition: background 0.2s;
+    }
+    .product-card .p-save-btn:hover { background: #457b9d; }
+
+    /* ── RIGHT PANEL — Search ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .search-bar {
+      padding: 16px;
+      border-bottom: 1px solid #222;
+      background: #111;
+      flex-shrink: 0;
+    }
+
+    .search-bar h2 { font-size: 0.95rem; color: #fff; margin-bottom: 10px; }
 
     .search-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
 
     .search-row input {
@@ -68,9 +376,9 @@
       background: #0f0f0f;
       border: 1px solid #333;
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 9px 14px;
       color: #e0e0e0;
-      font-size: 1rem;
+      font-size: 0.95rem;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -80,10 +388,10 @@
       background: #e63946;
       color: #fff;
       border: none;
-      padding: 10px 20px;
+      padding: 9px 18px;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 600;
       white-space: nowrap;
       transition: background 0.2s;
@@ -91,21 +399,24 @@
     .search-row button:hover { background: #c1121f; }
     .search-row button:disabled { background: #555; cursor: not-allowed; }
 
-    /* ── Search Results ── */
+
     #search-results {
-      margin-top: 20px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 80px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      align-content: start;
     }
 
     .card-item {
-      background: #111;
+      background: #1a1a1a;
       border: 1px solid #2a2a2a;
       border-radius: 10px;
       overflow: hidden;
       transition: border-color 0.2s, transform 0.2s;
-      cursor: pointer;
     }
     .card-item:hover { border-color: #e63946; transform: translateY(-2px); }
 
@@ -113,164 +424,460 @@
       width: 100%;
       aspect-ratio: 3/4;
       object-fit: cover;
-      background: #1a1a1a;
+      background: #111;
     }
 
-    .card-info { padding: 10px; }
-    .card-info .card-name { font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 4px; line-height: 1.3; }
-    .card-info .card-set { font-size: 0.75rem; color: #888; margin-bottom: 6px; }
-    .card-info .card-price { font-size: 1rem; font-weight: 700; color: #4ade80; }
-    .card-info .card-change { font-size: 0.75rem; margin-top: 2px; }
-    .card-change.up { color: #4ade80; }
-    .card-change.down { color: #f87171; }
+    .card-info { padding: 8px; }
+    .card-name { font-size: 0.8rem; font-weight: 600; color: #fff; margin-bottom: 3px; line-height: 1.3; }
+    .card-set { font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+    .card-finish {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #c4b5fd;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-bottom: 5px;
+    }
 
-    .add-row {
+    .bulk-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+    .bulk-bar--idle .bulk-btn-primary { opacity: 0.45; pointer-events: none; }
+    .bulk-bar label { font-size: 0.8rem; color: #aaa; }
+    .bulk-bar input[type="number"] {
+      width: 64px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background: #111;
+      color: #fff;
+    }
+    .bulk-btn {
+      background: #457b9d;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .bulk-btn-primary {
+      background: #16a34a;
+      font-size: 0.9rem;
+      padding: 10px 18px;
+    }
+    .bulk-btn-primary:hover { background: #15803d; }
+    .bulk-btn:hover { background: #3a6a8a; }
+    .bulk-btn:disabled { background: #444; cursor: not-allowed; }
+    .bulk-btn.secondary { background: #333; border: 1px solid #555; }
+    .bulk-hint { font-size: 0.75rem; color: #888; flex: 1 1 100%; }
+    .card-select {
       display: flex;
       align-items: center;
       gap: 6px;
+      font-size: 0.72rem;
+      color: #aaa;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .card-select input { cursor: pointer; accent-color: #16a34a; }
+    .bulk-select-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+    .bulk-select-row a { color: #60a5fa; cursor: pointer; }
+
+    .import-queue {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e;
+      border-top: 2px solid #16a34a;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 500;
+      transform: translateY(100%);
+      transition: transform 0.25s;
+    }
+    .import-queue.visible { transform: translateY(0); }
+    .import-queue strong { color: #fff; }
+    .import-queue .bulk-btn-primary { padding: 10px 24px; }
+
+    .bulk-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .bulk-overlay.visible { display: flex; }
+    .progress-detail {
+      font-size: 0.85rem;
+      color: #93c5fd;
+      margin-bottom: 10px;
+      min-height: 1.2em;
+      word-break: break-word;
+    }
+    .progress-stats {
+      font-size: 0.8rem;
+      color: #4ade80;
       margin-top: 8px;
     }
+    .progress-stats.has-failures { color: #fbbf24; }
+    .progress-errors {
+      display: none;
+      max-height: 140px;
+      overflow-y: auto;
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      background: #2a0a0a;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      text-align: left;
+      font-size: 0.75rem;
+      color: #fca5a5;
+      line-height: 1.45;
+    }
+    .progress-errors.visible { display: block; }
+    .progress-errors li { margin-bottom: 6px; }
+    .progress-errors li:last-child { margin-bottom: 0; }
+    .bulk-modal {
+      background: #1a1a2e;
+      border: 1px solid #444;
+      border-radius: 12px;
+      padding: 24px 28px;
+      max-width: 480px;
+      width: 90%;
+      text-align: center;
+    }
+    .bulk-modal h3 { color: #fff; margin-bottom: 12px; }
+    .bulk-modal p { color: #aaa; font-size: 0.9rem; margin-bottom: 16px; }
+    .bulk-progress {
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .bulk-progress__bar {
+      height: 100%;
+      background: linear-gradient(90deg, #e63946, #457b9d);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .card-price { font-size: 0.95rem; font-weight: 700; color: #4ade80; }
+    .card-change { font-size: 0.7rem; margin-top: 2px; }
+    .card-change.up { color: #4ade80; }
+    .card-change.down { color: #f87171; }
 
+    .add-row { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+    .add-row label { font-size: 0.7rem; color: #888; }
     .add-row input[type="number"] {
-      width: 70px;
+      width: 60px;
       background: #0f0f0f;
       border: 1px solid #333;
-      border-radius: 6px;
-      padding: 5px 8px;
+      border-radius: 5px;
+      padding: 4px 6px;
       color: #e0e0e0;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
-
-    .add-row label { font-size: 0.75rem; color: #888; }
 
     .add-card-btn {
       width: 100%;
-      margin-top: 6px;
+      margin-top: 5px;
       background: #1d3557;
       color: #fff;
       border: 1px solid #457b9d;
       border-radius: 6px;
-      padding: 6px;
+      padding: 5px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       transition: background 0.2s;
     }
     .add-card-btn:hover { background: #457b9d; }
     .add-card-btn:disabled { background: #333; border-color: #444; cursor: not-allowed; }
     .add-card-btn.added { background: #166534; border-color: #4ade80; }
-
-    /* ── Managed Products ── */
-    .products-section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #fff; }
-
-    #products-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .add-card-btn.already { background: #1e3a5f; border-color: #60a5fa; }
+    .card-already {
+      font-size: 0.68rem;
+      color: #93c5fd;
+      margin-bottom: 6px;
+      font-weight: 700;
     }
 
-    .product-row {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .product-row .product-title { flex: 1; font-weight: 600; font-size: 0.95rem; }
-    .product-row .product-price { color: #4ade80; font-weight: 700; min-width: 80px; text-align: right; }
-
-    .multiplier-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .multiplier-row label { font-size: 0.8rem; color: #888; }
-    .multiplier-row input {
-      width: 70px;
-      background: #0f0f0f;
-      border: 1px solid #333;
-      border-radius: 6px;
-      padding: 5px 8px;
-      color: #e0e0e0;
-      font-size: 0.85rem;
-    }
-    .multiplier-row button {
-      background: #1d3557;
-      color: #fff;
-      border: 1px solid #457b9d;
-      border-radius: 6px;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.2s;
-    }
-    .multiplier-row button:hover { background: #457b9d; }
-
-    /* ── Status / Toast ── */
+    /* ── Toast ── */
     #toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
+      bottom: 20px;
+      right: 20px;
       background: #1a1a2e;
       border: 1px solid #457b9d;
       color: #fff;
-      padding: 12px 20px;
+      padding: 10px 18px;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       opacity: 0;
       transition: opacity 0.3s;
       z-index: 999;
-      max-width: 320px;
+      max-width: 300px;
     }
     #toast.show { opacity: 1; }
     #toast.error { border-color: #e63946; }
     #toast.success { border-color: #4ade80; }
 
-    .empty-state { color: #555; text-align: center; padding: 32px; font-size: 0.95rem; }
+    .empty-state { color: #555; text-align: center; padding: 32px; font-size: 0.85rem; grid-column: 1 / -1; }
+    .loading { color: #888; text-align: center; padding: 20px; grid-column: 1 / -1; }
 
-    .loading { color: #888; text-align: center; padding: 20px; }
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    @media (max-width: 768px) {
+      .split { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .left-panel { height: 420px; border-right: none; border-bottom: 1px solid #222; }
+      #products-list { grid-template-columns: repeat(2, 1fr); }
+      .product-card .p-title { font-size: 0.72rem; }
+      #search-results { height: auto; }
+    }
+    .overview-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1px;
+      background: #222;
+      border-bottom: 1px solid #222;
+    }
+    .overview-tile {
+      flex: 1 1 150px;
+      background: #14141f;
+      padding: 10px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 130px;
+    }
+    .overview-tile--wide { flex: 1 1 220px; }
+    .overview-tile--margin { flex: 1 1 240px; }
+    .overview-label {
+      font-size: 0.68rem;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .overview-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .overview-value .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+      flex-shrink: 0;
+    }
+    .overview-value .dot.ok { background: #4ade80; }
+    .overview-value .dot.bad { background: #f87171; }
+    .overview-value.warn { color: #fbbf24; font-weight: 600; font-size: 0.82rem; }
+    .overview-value.bad { color: #f87171; font-weight: 600; font-size: 0.82rem; }
+    .overview-margin-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .overview-margin-row span { color: #888; font-size: 0.85rem; }
+    .overview-margin-row input {
+      width: 70px;
+      background: #0f0f0f;
+      border: 1px solid #333;
+      border-radius: 5px;
+      padding: 5px 7px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+    }
+    .overview-margin-row button {
+      background: #1d3557;
+      color: #fff;
+      border: 1px solid #457b9d;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .overview-margin-row button:hover { background: #457b9d; }
+    .overview-margin-row button:disabled { background: #333; border-color: #444; cursor: not-allowed; }
+
+    @media (max-width: 768px) {
+      .overview-bar { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
 
 <header>
   <h1>Holo Vault <span>Card Manager</span></h1>
-  <button class="sync-btn" id="sync-btn" onclick="triggerSync()">⟳ Sync Prices Now</button>
+  <div class="header-actions">
+    <a href="/usage.html" class="help-link" title="How to use Card Manager">? Usage</a>
+    <button class="sync-btn" id="sync-btn" onclick="triggerSync()">⟳ Sync Prices Now</button>
+    <button class="delete-all-btn" id="delete-all-header-btn" type="button" onclick="deleteAllProducts()">Delete all</button>
+  </div>
 </header>
 
-<div class="container">
-
-  <!-- Search & Add -->
-  <div class="search-section">
-    <h2>Search &amp; Add Card from Collectr</h2>
-    <div class="search-row">
-      <input
-        type="text"
-        id="search-input"
-        placeholder="Search card name (e.g. Charizard, Pikachu ex...)"
-        onkeydown="if(event.key==='Enter') doSearch()"
-      />
-      <button id="search-btn" onclick="doSearch()">Search</button>
+<div class="overview-bar" id="overview-bar">
+  <div class="overview-tile">
+    <span class="overview-label">Store</span>
+    <span class="overview-value" id="ov-connection">
+      <span class="dot" id="ov-dot"></span> checking…
+    </span>
+  </div>
+  <div class="overview-tile">
+    <span class="overview-label">Managed products</span>
+    <span class="overview-value" id="ov-product-count">—</span>
+  </div>
+  <div class="overview-tile">
+    <span class="overview-label">Total stock (units)</span>
+    <span class="overview-value" id="ov-total-stock">—</span>
+  </div>
+  <div class="overview-tile overview-tile--wide">
+    <span class="overview-label">Last price sync</span>
+    <span class="overview-value" id="ov-last-sync">—</span>
+  </div>
+  <div class="overview-tile overview-tile--margin">
+    <span class="overview-label">Set margin for ALL products</span>
+    <div class="overview-margin-row">
+      <span>×</span>
+      <input type="number" id="ov-bulk-multiplier" value="1.00" min="0.01" max="10" step="0.05" />
+      <button type="button" id="ov-bulk-multiplier-btn" onclick="applyBulkMultiplier()">Apply to all</button>
     </div>
-    <div id="search-results"></div>
   </div>
+</div>
 
-  <!-- Managed Products -->
-  <div class="products-section">
-    <h2>Managed Products in Shopify</h2>
+<div class="split">
+
+  <!-- LEFT — Managed Products -->
+  <div class="left-panel">
+    <div class="left-panel-header">
+      <div class="left-panel-header__row">
+        <h2>Managed Products</h2>
+        <span id="product-count">0</span>
+      </div>
+      <p class="left-panel-sort-hint">Newest first</p>
+      <div class="products-search-row">
+        <input
+          type="search"
+          id="products-search-input"
+          placeholder="Search listings (name, #, finish…)"
+          autocomplete="off"
+          oninput="onProductsSearchInput()"
+        />
+        <button type="button" class="products-search-clear" id="products-search-clear" onclick="clearProductsSearch()" title="Clear search" hidden>✕</button>
+      </div>
+      <button class="delete-all-panel-btn" id="delete-all-panel-btn" type="button" onclick="deleteAllProducts()">Delete all managed products</button>
+    </div>
     <div id="products-list"><div class="loading">Loading...</div></div>
+    <div class="products-pagination" id="products-pagination" hidden></div>
   </div>
 
+  <!-- RIGHT — Search & Add -->
+  <div class="right-panel">
+    <div class="search-bar">
+      <h2>Search &amp; Add Card from Collectr</h2>
+      <div class="search-row">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search card name (e.g. Charizard, Pikachu ex...)"
+          onkeydown="if(event.key==='Enter') doSearch()"
+        />
+        <button id="search-btn" onclick="doSearch()">Search</button>
+      </div>
+      <div class="bulk-bar bulk-bar--idle" id="bulk-bar">
+        <button type="button" class="bulk-btn bulk-btn-primary" id="bulk-add-selected-btn" onclick="bulkAddSelected()">
+          Import selected to Shopify
+        </button>
+        <button type="button" class="bulk-btn" id="bulk-add-new-btn" onclick="bulkAdd(true)">All new only</button>
+        <button type="button" class="bulk-btn secondary" id="bulk-queue-btn" onclick="addSelectedToQueue()">Add selected to queue</button>
+        <label>×</label>
+        <input type="number" id="bulk-multiplier" value="1.00" min="0.01" max="10" step="0.05" />
+        <div class="bulk-select-row">
+          <label><input type="checkbox" id="select-all-cards" onchange="toggleSelectAll(this.checked)" /> Select all</label>
+          <a onclick="selectNewOnly()">New only</a>
+          <a onclick="clearSelection()">Clear</a>
+        </div>
+        <span class="bulk-hint" id="bulk-hint">Search first, then use Import selected — no need to click each card. ~3 sec per card.</span>
+      </div>
+    </div>
+    <div id="search-results"><div class="empty-state">Search for a card to get started.</div></div>
+  </div>
+
+</div>
+
+<div class="bulk-overlay" id="progress-overlay">
+  <div class="bulk-modal">
+    <h3 id="progress-title">Working…</h3>
+    <p id="progress-status">Starting…</p>
+    <p id="progress-detail" class="progress-detail"></p>
+    <div class="bulk-progress"><div class="bulk-progress__bar" id="progress-bar"></div></div>
+    <p id="progress-stats" class="progress-stats"></p>
+    <ul id="progress-errors" class="progress-errors"></ul>
+    <p id="progress-estimate" style="font-size:0.8rem;color:#666"></p>
+  </div>
+</div>
+
+<div class="import-queue" id="import-queue">
+  <span>Queue: <strong id="queue-count">0</strong> cards ready</span>
+  <button type="button" class="bulk-btn bulk-btn-primary" onclick="importQueue()">Import queue to Shopify</button>
+  <button type="button" class="bulk-btn secondary" onclick="clearQueue()">Clear queue</button>
 </div>
 
 <div id="toast"></div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
   let searchResults = [];
+  let selectedIndices = new Set();
+  let importQueueCards = [];
+  let managedByCollectrId = {};
+  let managedProducts = [];
+  let productsFilterQuery = '';
+  let productsPage = 1;
+  const PRODUCTS_PER_PAGE = 24;
+  let loadProductsTimer = null;
+
+  function scheduleLoadProducts() {
+    clearTimeout(loadProductsTimer);
+    loadProductsTimer = setTimeout(loadProducts, 500);
+  }
+
+  function listingKey(collectrId, subType) {
+    const sub = (subType || '').trim().toLowerCase().replace(/_/g, ' ');
+    return `${String(collectrId)}::${sub}`;
+  }
 
   // ── Search ─────────────────────────────────────────────────────────────────
   async function doSearch() {
@@ -285,13 +892,13 @@
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || 'Search failed');
-
       searchResults = data.cards || [];
+      selectedIndices = new Set();
+      updateBulkBar();
       renderSearchResults(searchResults);
     } catch (err) {
-      document.getElementById('search-results').innerHTML = '';
+      document.getElementById('search-results').innerHTML = '<div class="empty-state">Search failed. Try again.</div>';
       showToast(err.message, 'error');
     } finally {
       btn.disabled = false;
@@ -299,34 +906,313 @@
     }
   }
 
+  function clearSearchResults() {
+    searchResults = [];
+    selectedIndices = new Set();
+    updateBulkBar();
+    document.getElementById('search-results').innerHTML =
+      '<div class="empty-state">Search for a card to get started.</div>';
+  }
+
+  function countNewCards() {
+    return searchResults.filter((c) => {
+      if (!c.collectrId) return false;
+      return !managedByCollectrId[listingKey(c.collectrId, c.subType)];
+    }).length;
+  }
+
+  function isNewCard(card) {
+    if (!card.collectrId) return false;
+    return !managedByCollectrId[listingKey(card.collectrId, card.subType)];
+  }
+
+  function cardsFromIndices(indices) {
+    const defaultMult = parseFloat(document.getElementById('bulk-multiplier').value) || 1;
+    return [...indices].map((i) => {
+      const card = searchResults[i];
+      const multEl = document.getElementById(`mult-${i}`);
+      const mult = multEl ? parseFloat(multEl.value) : defaultMult;
+      return { ...card, _multiplier: mult };
+    }).filter((c) => c && c.collectrId);
+  }
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    const hasSearch = searchResults.length > 0;
+    bar.classList.toggle('bulk-bar--idle', !hasSearch);
+
+    const sel = selectedIndices.size;
+    const newCount = countNewCards();
+    document.getElementById('bulk-add-selected-btn').textContent =
+      hasSearch ? `Import selected (${sel})` : 'Import selected to Shopify';
+    document.getElementById('bulk-add-new-btn').textContent =
+      newCount > 0 ? `All new only (${newCount})` : 'All new only (0)';
+    document.getElementById('bulk-hint').textContent = hasSearch
+      ? `${searchResults.length} results · ${sel} selected · ~${Math.ceil(sel * 3)}s for selected · Use queue to combine multiple searches`
+      : 'Search Collectr, tick cards (or Select all), then Import selected — no need to click each Add button.';
+    document.getElementById('select-all-cards').checked =
+      hasSearch && sel === searchResults.length;
+  }
+
+  function toggleSelectAll(checked) {
+    selectedIndices = new Set();
+    if (checked) searchResults.forEach((_, i) => selectedIndices.add(i));
+    updateBulkBar();
+    renderSearchResults(searchResults);
+  }
+
+  function selectNewOnly() {
+    selectedIndices = new Set();
+    searchResults.forEach((c, i) => {
+      if (isNewCard(c)) selectedIndices.add(i);
+    });
+    updateBulkBar();
+    renderSearchResults(searchResults);
+  }
+
+  function clearSelection() {
+    selectedIndices.clear();
+    updateBulkBar();
+    renderSearchResults(searchResults);
+  }
+
+  function toggleCardSelect(i, checked) {
+    if (checked) selectedIndices.add(i);
+    else selectedIndices.delete(i);
+    updateBulkBar();
+  }
+
+  function updateQueueUI() {
+    const el = document.getElementById('import-queue');
+    document.getElementById('queue-count').textContent = importQueueCards.length;
+    el.classList.toggle('visible', importQueueCards.length > 0);
+  }
+
+  function queueKey(card) {
+    return listingKey(card.collectrId, card.subType);
+  }
+
+  function addSelectedToQueue() {
+    const cards = cardsFromIndices(selectedIndices);
+    if (!cards.length) return showToast('Select at least one card.', 'error');
+    const existing = new Set(importQueueCards.map(queueKey));
+    let added = 0;
+    for (const card of cards) {
+      const k = queueKey(card);
+      if (!existing.has(k)) {
+        importQueueCards.push(card);
+        existing.add(k);
+        added++;
+      }
+    }
+    updateQueueUI();
+    showToast(`Added ${added} to queue (${importQueueCards.length} total). Search again to add more sets.`, 'success');
+  }
+
+  function clearQueue() {
+    importQueueCards = [];
+    updateQueueUI();
+  }
+
+  function importQueue() {
+    if (!importQueueCards.length) return showToast('Queue is empty.', 'error');
+    runBulkImport(importQueueCards, false).then(() => {
+      importQueueCards = [];
+      updateQueueUI();
+    });
+  }
+
+  function bulkAddSelected() {
+    const cards = cardsFromIndices(selectedIndices);
+    if (!cards.length) return showToast('Select cards to import (checkbox on each card).', 'error');
+    return runBulkImport(cards, false);
+  }
+
+  function bulkAdd(onlyNew) {
+    if (!searchResults.length) return showToast('Search for cards first.', 'error');
+    const cards = cardsFromIndices(
+      onlyNew
+        ? new Set(searchResults.map((c, i) => (isNewCard(c) ? i : -1)).filter((i) => i >= 0))
+        : new Set(searchResults.map((_, i) => i))
+    );
+    if (!cards.length) return showToast('All results already on the store.', 'error');
+    return runBulkImport(cards, onlyNew);
+  }
+
+  async function runBulkImport(cards, onlyNew) {
+    const defaultMult = parseFloat(document.getElementById('bulk-multiplier').value) || 1;
+    const msg = `Import ${cards.length} cards to Shopify? (~${Math.ceil(cards.length * 3)} seconds)`;
+    if (!confirm(msg)) return;
+
+    showProgressModal({
+      title: 'Adding cards to Shopify',
+      status: `Importing ${cards.length} cards…`,
+      estimate: 'Please keep this tab open',
+    });
+    const bar = document.getElementById('progress-bar');
+
+    const disable = (on) => {
+      ['bulk-add-selected-btn', 'bulk-add-new-btn', 'bulk-queue-btn', 'search-btn'].forEach((id) => {
+        document.getElementById(id).disabled = on;
+      });
+    };
+    disable(true);
+
+    const BATCH = 50;
+    const chunks = [];
+    for (let i = 0; i < cards.length; i += BATCH) chunks.push(cards.slice(i, i + BATCH));
+    const totals = { added: 0, incremented: 0, skipped: 0, failed: 0, durationMs: 0, errors: [] };
+
+    try {
+      for (let c = 0; c < chunks.length; c++) {
+        const chunk = chunks[c];
+        setProgress({
+          status: `Batch ${c + 1} of ${chunks.length} (${chunk.length} cards)…`,
+          percent: Math.round(((c + 0.2) / chunks.length) * 100),
+        });
+
+        const res = await fetch('/api/bulk-add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cards: chunk, multiplier: defaultMult, onlyNew }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Bulk import failed');
+
+        totals.added += data.added || 0;
+        totals.incremented += data.incremented || 0;
+        totals.skipped += data.skipped || 0;
+        totals.failed += data.failed || 0;
+        totals.durationMs += data.durationMs || 0;
+        if (data.errors?.length) totals.errors.push(...data.errors);
+        setProgress({ percent: Math.round(((c + 1) / chunks.length) * 100) });
+      }
+
+      const summary = `Done — ${totals.added} new, ${totals.incremented} stock+1, ${totals.skipped} skipped, ${totals.failed} failed`;
+      setProgress({ status: summary, percent: 100 });
+      showToast(summary, totals.failed ? 'error' : 'success');
+      if (totals.errors.length) console.warn('Bulk errors:', totals.errors);
+      await loadProducts();
+      if (searchResults.length) {
+        selectNewOnly();
+        renderSearchResults(searchResults);
+      }
+      updateBulkBar();
+    } catch (err) {
+      setProgress({ status: err.message, percent: 0 });
+      showToast(err.message, 'error');
+    } finally {
+      setTimeout(hideProgressModal, 2500);
+      disable(false);
+    }
+  }
+
+  function showProgressModal({ title, status, estimate, detail, stats }) {
+    document.getElementById('progress-title').textContent = title || 'Working…';
+    document.getElementById('progress-status').textContent = status || 'Starting…';
+    document.getElementById('progress-detail').textContent = detail || '';
+    document.getElementById('progress-stats').textContent = stats || '';
+    document.getElementById('progress-stats').classList.remove('has-failures');
+    document.getElementById('progress-errors').classList.remove('visible');
+    document.getElementById('progress-errors').innerHTML = '';
+    document.getElementById('progress-estimate').textContent = estimate || '';
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-overlay').classList.add('visible');
+  }
+
+  function setProgress({ status, detail, stats, percent, estimate, errors, hasFailures }) {
+    if (status != null) document.getElementById('progress-status').textContent = status;
+    if (detail != null) document.getElementById('progress-detail').textContent = detail;
+    if (stats != null) document.getElementById('progress-stats').textContent = stats;
+    if (estimate != null) document.getElementById('progress-estimate').textContent = estimate;
+    if (percent != null) document.getElementById('progress-bar').style.width = `${percent}%`;
+    if (hasFailures != null) {
+      document.getElementById('progress-stats').classList.toggle('has-failures', !!hasFailures);
+    }
+    if (errors != null) {
+      const errEl = document.getElementById('progress-errors');
+      if (errors.length) {
+        errEl.innerHTML = errors
+          .map((e) => `<li><strong>${escHtml(e.product || e.title || 'Product')}:</strong> ${escHtml(e.error || e.message || String(e))}</li>`)
+          .join('');
+        errEl.classList.add('visible');
+      } else {
+        errEl.innerHTML = '';
+        errEl.classList.remove('visible');
+      }
+    }
+  }
+
+  function hideProgressModal() {
+    document.getElementById('progress-overlay').classList.remove('visible');
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-errors').classList.remove('visible');
+    document.getElementById('progress-errors').innerHTML = '';
+  }
+
+  async function readSseStream(response, onEvent) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+      for (const part of parts) {
+        const line = part.split('\n').find((l) => l.startsWith('data: '));
+        if (!line) continue;
+        try {
+          onEvent(JSON.parse(line.slice(6)));
+        } catch (e) {
+          console.warn('SSE parse error', e);
+        }
+      }
+    }
+  }
+
   function renderSearchResults(cards) {
     const container = document.getElementById('search-results');
     if (cards.length === 0) {
-      container.innerHTML = '<div class="empty-state">No cards found. Try a different search.</div>';
+      container.innerHTML = '<div class="empty-state">No cards found.</div>';
       return;
     }
-
     container.innerHTML = cards.map((card, i) => {
       const changeClass = card.priceChangePct >= 0 ? 'up' : 'down';
       const changeSign = card.priceChangePct >= 0 ? '+' : '';
-      const imgSrc = card.imageUrl || 'https://via.placeholder.com/180x240?text=No+Image';
-
+      const imgSrc = card.imageUrl || 'https://placehold.co/160x213?text=No+Image';
+      const existing = card.collectrId
+        ? managedByCollectrId[listingKey(card.collectrId, card.subType)]
+        : null;
+      const qtyLabel = existing && existing.inventoryQuantity != null ? existing.inventoryQuantity : '?';
+      const alreadyHtml = existing
+        ? `<div class="card-already">Already on store — qty ${qtyLabel}. Click to add +1.</div>`
+        : '';
+      const btnLabel = existing ? '+ Add another (qty +1)' : '+ Add to Shopify';
+      const btnClass = existing ? 'add-card-btn already' : 'add-card-btn';
+      const checked = selectedIndices.has(i) ? 'checked' : '';
       return `
         <div class="card-item">
-          <img src="${escHtml(imgSrc)}" alt="${escHtml(card.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/180x240?text=No+Image'" />
+          <img src="${escHtml(imgSrc)}" alt="${escHtml(card.name)}" loading="lazy" onerror="this.src='https://placehold.co/160x213?text=No+Image'" />
           <div class="card-info">
+            <label class="card-select">
+              <input type="checkbox" ${checked} onchange="toggleCardSelect(${i}, this.checked)" />
+              Select
+            </label>
             <div class="card-name">${escHtml(card.name)}</div>
-            <div class="card-set">${escHtml(card.setName || '')} ${card.cardNumber ? '#' + escHtml(card.cardNumber) : ''}</div>
+            ${card.subType ? `<div class="card-finish">${escHtml(card.subType)}</div>` : ''}
+            ${alreadyHtml}
+            <div class="card-set">${escHtml(card.setName || '')}${card.cardNumber ? ' #' + escHtml(card.cardNumber) : ''}</div>
             <div class="card-price">$${card.price.toFixed(2)}</div>
             <div class="card-change ${changeClass}">${changeSign}${card.priceChangePct.toFixed(2)}%</div>
             <div class="add-row">
               <label>×</label>
-              <input type="number" id="mult-${i}" value="1.00" min="0.01" max="10" step="0.05" title="Price multiplier" />
+              <input type="number" id="mult-${i}" value="1.00" min="0.01" max="10" step="0.05" />
             </div>
-            <button class="add-card-btn" id="add-btn-${i}" onclick="addCard(${i})">+ Add to Shopify</button>
+            <button class="${btnClass}" id="add-btn-${i}" onclick="addCard(${i})">${btnLabel}</button>
           </div>
-        </div>
-      `;
+        </div>`;
     }).join('');
   }
 
@@ -334,10 +1220,8 @@
     const card = searchResults[index];
     const multiplier = parseFloat(document.getElementById(`mult-${index}`).value) || 1.0;
     const btn = document.getElementById(`add-btn-${index}`);
-
     btn.disabled = true;
     btn.textContent = 'Adding...';
-
     try {
       const res = await fetch('/api/add-card', {
         method: 'POST',
@@ -345,13 +1229,22 @@
         body: JSON.stringify({ card, multiplier }),
       });
       const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || 'Failed to add card');
-
-      btn.textContent = '✓ Added';
-      btn.classList.add('added');
-      showToast(`"${card.name}" added to Shopify at $${data.product.price}`, 'success');
-      loadProducts(); // refresh the list
+      if (!res.ok) {
+        const extra = data.shopify ? ` (${typeof data.shopify === 'string' ? data.shopify : JSON.stringify(data.shopify)})` : '';
+        throw new Error((data.error || 'Failed to add card') + extra);
+      }
+      if (data.incremented) {
+        btn.textContent = `✓ Qty ${data.quantity}`;
+        btn.classList.add('added', 'already');
+        showToast(`Already listed — stock is now ${data.quantity} at $${data.product.price}`, 'success');
+      } else {
+        btn.textContent = '✓ Added';
+        btn.classList.add('added');
+        showToast(`"${card.name}" added at $${data.product.price} (qty 1)`, 'success');
+      }
+      if (data.warning) showToast(data.warning, 'error');
+      scheduleLoadProducts();
+      if (searchResults.length) renderSearchResults(searchResults);
     } catch (err) {
       btn.disabled = false;
       btn.textContent = '+ Add to Shopify';
@@ -360,40 +1253,367 @@
   }
 
   // ── Products List ──────────────────────────────────────────────────────────
+  function getFilteredManagedProducts() {
+    const q = productsFilterQuery.trim().toLowerCase();
+    if (!q) return managedProducts;
+    return managedProducts.filter((p) => {
+      const haystack = [
+        p.title,
+        p.cardNumber,
+        p.subType,
+        p.collectrId,
+        p.price != null ? String(p.price) : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  function updateProductCountDisplay() {
+    const filtered = getFilteredManagedProducts();
+    const el = document.getElementById('product-count');
+    const q = productsFilterQuery.trim();
+    el.textContent = q ? `${filtered.length} / ${managedProducts.length}` : String(managedProducts.length);
+    const clearBtn = document.getElementById('products-search-clear');
+    if (clearBtn) clearBtn.hidden = !q;
+  }
+
+  function onProductsSearchInput() {
+    productsFilterQuery = document.getElementById('products-search-input').value;
+    productsPage = 1;
+    updateProductCountDisplay();
+    renderManagedProducts();
+  }
+
+  function clearProductsSearch() {
+    const input = document.getElementById('products-search-input');
+    input.value = '';
+    productsFilterQuery = '';
+    productsPage = 1;
+    updateProductCountDisplay();
+    renderManagedProducts();
+    input.focus();
+  }
+
+  function formatProductPrice(price) {
+    if (price == null || price === '') return '';
+    const n = parseFloat(price);
+    if (Number.isNaN(n)) return '';
+    return `$${n.toFixed(2)}`;
+  }
+
+  function productThumbHtml(p) {
+    const priceTag = p.price ? `<span class="p-price">${escHtml(formatProductPrice(p.price))}</span>` : '';
+    if (p.imageUrl) {
+      return `<div class="p-thumb-wrap">${priceTag}<img class="p-thumb" src="${escHtml(p.imageUrl)}" alt="" loading="lazy" /></div>`;
+    }
+    return `<div class="p-thumb-wrap">${priceTag}<div class="p-thumb-placeholder">No image</div></div>`;
+  }
+
+  function renderProductsPagination(totalPages, filteredCount) {
+    const bar = document.getElementById('products-pagination');
+    if (filteredCount === 0) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    const start = (productsPage - 1) * PRODUCTS_PER_PAGE + 1;
+    const end = Math.min(productsPage * PRODUCTS_PER_PAGE, filteredCount);
+    const totalLabel = productsFilterQuery.trim()
+      ? `${filteredCount} match${filteredCount === 1 ? '' : 'es'}`
+      : `${filteredCount} total`;
+    bar.innerHTML = `
+      <button type="button" onclick="changeProductsPage(-1)" ${productsPage <= 1 ? 'disabled' : ''}>← Prev</button>
+      <span>${start}–${end} of ${totalLabel} · page ${productsPage}/${totalPages}</span>
+      <button type="button" onclick="changeProductsPage(1)" ${productsPage >= totalPages ? 'disabled' : ''}>Next →</button>
+    `;
+  }
+
+  function changeProductsPage(delta) {
+    const filtered = getFilteredManagedProducts();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+    productsPage = Math.min(totalPages, Math.max(1, productsPage + delta));
+    renderManagedProducts();
+    document.getElementById('products-list')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderManagedProducts() {
+    const container = document.getElementById('products-list');
+    if (managedProducts.length === 0) {
+      container.innerHTML = '<div class="empty-state">No managed products yet.<br>Add cards from the search panel.</div>';
+      renderProductsPagination(1, 0);
+      return;
+    }
+
+    const filtered = getFilteredManagedProducts();
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="empty-state">No listings match your search.<br>Try another name, card number, or finish.</div>';
+      renderProductsPagination(1, 0);
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+    if (productsPage > totalPages) productsPage = totalPages;
+    const start = (productsPage - 1) * PRODUCTS_PER_PAGE;
+    const pageItems = filtered.slice(start, start + PRODUCTS_PER_PAGE);
+
+    container.innerHTML = pageItems.map((p) => `
+      <div class="product-card" id="pcard-${p.productId}">
+        ${productThumbHtml(p)}
+        <div class="p-body">
+          <div class="p-title" title="${escHtml(p.title)}">${escHtml(p.title)}</div>
+          <div class="p-qty">Stock ${p.inventoryQuantity != null ? p.inventoryQuantity : '—'}</div>
+          ${p.cardNumber ? `<div class="p-num">#${escHtml(p.cardNumber)} · ${escHtml(p.subType || '')}</div>` : ''}
+        </div>
+        <div class="p-meta">
+          <button class="p-sync-btn" onclick="syncOneProduct('${p.productId}')" title="Sync price">⟳</button>
+          <span class="p-mult-label">×</span>
+          <input class="p-mult-input" type="number" id="pmult-${p.productId}" value="${p.multiplier}" min="0.01" max="10" step="0.05" />
+          <button class="p-save-btn" onclick="saveMultiplier('${p.productId}')">Save</button>
+          <button class="p-delete-btn" onclick="deleteProduct('${p.productId}', '${escHtml(p.title).replace(/'/g, "\\'")}')" title="Delete">✕</button>
+        </div>
+      </div>`).join('');
+
+    renderProductsPagination(totalPages, filtered.length);
+  }
+
   async function loadProducts() {
     const container = document.getElementById('products-list');
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch(`/api/products?_=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      managedProducts = data.products || [];
+      managedByCollectrId = {};
+      managedProducts.forEach((p) => {
+        if (p.collectrId) managedByCollectrId[listingKey(p.collectrId, p.subType)] = p;
+      });
+      updateBulkBar();
+      updateProductCountDisplay();
+      renderManagedProducts();
+      updateOverviewFromProducts();
+    } catch (err) {
+      managedProducts = [];
+      container.innerHTML = `<div class="empty-state">Error: ${escHtml(err.message)}</div>`;
+      document.getElementById('products-pagination').hidden = true;
+    }
+  }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to load products');
+  // ── Overview dashboard ────────────────────────────────────────────────────
+  function updateOverviewFromProducts() {
+    document.getElementById('ov-product-count').textContent = managedProducts.length;
+    const totalStock = managedProducts.reduce(
+      (sum, p) => sum + (typeof p.inventoryQuantity === 'number' ? p.inventoryQuantity : 0),
+      0
+    );
+    document.getElementById('ov-total-stock').textContent = totalStock;
+  }
 
-      const products = data.products || [];
-      if (products.length === 0) {
-        container.innerHTML = '<div class="empty-state">No managed products yet. Search and add cards above.</div>';
+  function timeAgo(iso) {
+    if (!iso) return null;
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  }
+
+  async function checkConnectionStatus() {
+    const el = document.getElementById('ov-connection');
+    const dot = document.getElementById('ov-dot');
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      if (data.connected) {
+        dot.className = 'dot ok';
+        el.innerHTML = `<span class="dot ok"></span> Connected · ${escHtml(data.store || '')}`;
+      } else {
+        el.innerHTML = `<span class="dot bad"></span> Not connected`;
+      }
+    } catch (err) {
+      el.innerHTML = `<span class="dot bad"></span> Unreachable`;
+    }
+  }
+
+  async function checkLastSync() {
+    const el = document.getElementById('ov-last-sync');
+    try {
+      const res = await fetch('/api/sync/last');
+      const data = await res.json();
+      if (data.syncRunning) {
+        el.innerHTML = `<span>Syncing now…</span>`;
+        el.className = 'overview-value warn';
         return;
       }
-
-      container.innerHTML = products.map((p) => `
-        <div class="product-row">
-          <div class="product-title">${escHtml(p.title)}</div>
-          <div class="multiplier-row">
-            <label>Multiplier:</label>
-            <input type="number" id="pmult-${p.productId}" value="${p.multiplier}" min="0.01" max="10" step="0.05" />
-            <button onclick="saveMultiplier('${p.productId}')">Save</button>
-          </div>
-        </div>
-      `).join('');
+      const s = data.lastSync;
+      if (!s) {
+        el.textContent = 'No sync yet';
+        el.className = 'overview-value';
+        return;
+      }
+      const ago = timeAgo(s.finishedAt || s.startedAt);
+      const sourceLabel = s.source === 'cron' ? 'auto' : 'manual';
+      if (s.status === 'failed') {
+        el.innerHTML = `Failed ${ago} <span style="color:#777;font-weight:400">(${sourceLabel})</span>`;
+        el.className = 'overview-value bad';
+      } else if (s.failed > 0) {
+        el.innerHTML = `${ago}: ${s.updated} ok, ${s.failed} failed <span style="color:#777;font-weight:400">(${sourceLabel})</span>`;
+        el.className = 'overview-value warn';
+      } else {
+        el.innerHTML = `${ago}: ${s.updated} updated <span style="color:#777;font-weight:400">(${sourceLabel})</span>`;
+        el.className = 'overview-value';
+      }
     } catch (err) {
-      container.innerHTML = `<div class="empty-state">Error loading products: ${escHtml(err.message)}</div>`;
+      el.textContent = '—';
+    }
+  }
+
+  function refreshOverview() {
+    checkConnectionStatus();
+    checkLastSync();
+  }
+
+  async function applyBulkMultiplier() {
+    const input = document.getElementById('ov-bulk-multiplier');
+    const multiplier = parseFloat(input.value);
+    if (isNaN(multiplier) || multiplier <= 0) return showToast('Invalid multiplier.', 'error');
+
+    const count = managedProducts.length;
+    if (count === 0) return showToast('No managed products yet.', 'error');
+    if (!confirm(`Set every managed product's margin to ×${multiplier}?\n\nThis applies to all ${count} listing(s). New prices show up on each product's next sync.`)) return;
+
+    const btn = document.getElementById('ov-bulk-multiplier-btn');
+    btn.disabled = true;
+    btn.textContent = 'Applying…';
+    try {
+      const res = await fetch('/api/products/bulk-multiplier', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ multiplier }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      showToast(
+        data.failed
+          ? `Margin set on ${data.updated} of ${data.total} (${data.failed} failed).`
+          : `Margin ×${multiplier} applied to all ${data.updated} products.`,
+        data.failed ? 'error' : 'success'
+      );
+      scheduleLoadProducts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Apply to all';
+    }
+  }
+
+  async function deleteAllProducts() {
+    const count = parseInt(document.getElementById('product-count').textContent, 10) || 0;
+    if (count === 0) return showToast('No managed products to delete.', 'error');
+
+    if (!confirm(`Delete ALL ${count} collectr-managed products from Shopify?\n\nThis cannot be undone.`)) return;
+    if (!confirm('Last chance: permanently delete every managed product?')) return;
+
+    const headerBtn = document.getElementById('delete-all-header-btn');
+    const panelBtn = document.getElementById('delete-all-panel-btn');
+    headerBtn.disabled = true;
+    panelBtn.disabled = true;
+    panelBtn.textContent = 'Deleting...';
+
+    try {
+      const res = await fetch('/api/products/delete-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE ALL' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete all failed');
+
+      const msg = data.failed
+        ? `Deleted ${data.deleted} of ${data.total}. ${data.failed} failed.`
+        : `Deleted all ${data.deleted} products.`;
+      showToast(msg, data.failed ? 'error' : 'success');
+      if (data.errors?.length) console.warn('Delete errors:', data.errors);
+
+      managedByCollectrId = {};
+      scheduleLoadProducts();
+      if (searchResults.length) renderSearchResults(searchResults);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      headerBtn.disabled = false;
+      panelBtn.disabled = false;
+      panelBtn.textContent = 'Delete all managed products';
+    }
+  }
+
+  async function deleteProduct(productId, title) {
+    if (!confirm(`Delete "${title}" from Shopify? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      managedProducts = managedProducts.filter((p) => String(p.productId) !== String(productId));
+      const filtered = getFilteredManagedProducts();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+      if (productsPage > totalPages) productsPage = totalPages;
+      updateProductCountDisplay();
+      renderManagedProducts();
+      showToast(`"${title}" deleted from Shopify.`, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function syncOneProduct(productId) {
+    const btn = document.querySelector(`#pcard-${productId} .p-sync-btn`);
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Syncing…';
+    }
+    showProgressModal({
+      title: 'Syncing one card',
+      status: 'Matching Collectr by card number + finish…',
+    });
+    try {
+      const res = await fetch(`/api/products/${productId}/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      setProgress({
+        status: `Updated to $${data.price}`,
+        detail: `#${data.cardNumber || '?'} · ${data.subType || ''} (market $${data.marketPrice})`,
+        percent: 100,
+      });
+      showToast(`Price updated to $${data.price}`, 'success');
+      const idx = managedProducts.findIndex((p) => String(p.productId) === String(productId));
+      if (idx >= 0) {
+        managedProducts[idx].price = data.price;
+        renderManagedProducts();
+      } else {
+        scheduleLoadProducts();
+      }
+    } catch (err) {
+      setProgress({ status: err.message, detail: '' });
+      showToast(err.message, 'error');
+    } finally {
+      setTimeout(hideProgressModal, 2000);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⟳ Sync price';
+      }
     }
   }
 
   async function saveMultiplier(productId) {
     const input = document.getElementById(`pmult-${productId}`);
     const multiplier = parseFloat(input.value);
-    if (isNaN(multiplier) || multiplier <= 0) return showToast('Invalid multiplier value.', 'error');
-
+    if (isNaN(multiplier) || multiplier <= 0) return showToast('Invalid multiplier.', 'error');
     try {
       const res = await fetch(`/api/products/${productId}/multiplier`, {
         method: 'PATCH',
@@ -401,7 +1621,7 @@
         body: JSON.stringify({ multiplier }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Multiplier updated!', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -414,18 +1634,97 @@
     btn.disabled = true;
     btn.textContent = 'Syncing...';
 
+    showProgressModal({
+      title: 'Syncing prices from Collectr',
+      status: 'Starting…',
+      estimate: '~2 seconds per card — keep this tab open',
+    });
+
+    let finalResult = null;
+    let jobId = null;
     try {
-      const res = await fetch('/api/sync', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Sync failed');
-      showToast('Price sync started! Check server logs for progress.', 'success');
+      const startRes = await fetch('/api/sync/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const startData = await startRes.json().catch(() => ({}));
+
+      if (!startRes.ok && startRes.status !== 409) {
+        throw new Error(startData.error || 'Sync failed to start');
+      }
+
+      jobId = startData.jobId || startData.job?.id;
+      if (!jobId) throw new Error('Sync job id missing');
+
+      while (true) {
+        const res = await fetch(`/api/sync/status/${jobId}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Sync status failed');
+
+        const job = data.job || {};
+        const total = job.total || 0;
+        const current = job.current || 0;
+        const pct = total > 0 ? Math.round((current / total) * 100) : (job.status === 'done' ? 100 : 2);
+        const stats = `${job.updated || 0} updated · ${job.failed || 0} failed`;
+        const status = total > 0 ? `Card ${Math.min(current, total)} of ${total}` : (job.message || 'Starting…');
+
+        setProgress({
+          status,
+          detail: job.detail || job.message || '',
+          stats,
+          percent: pct,
+          hasFailures: (job.failed || 0) > 0,
+          errors: job.status === 'done' || job.status === 'failed' ? (job.errors || []) : null,
+        });
+
+        if (job.status === 'done') {
+          finalResult = {
+            updated: job.updated || 0,
+            failed: job.failed || 0,
+            errors: job.errors || [],
+          };
+          const msg = finalResult.failed
+            ? `Done — ${finalResult.updated} updated, ${finalResult.failed} failed`
+            : `Done — ${finalResult.updated} prices updated`;
+          setProgress({
+            status: msg,
+            percent: 100,
+            detail: finalResult.failed
+              ? `${finalResult.failed} card${finalResult.failed === 1 ? '' : 's'} could not be synced`
+              : 'All prices updated successfully',
+            stats: msg,
+            hasFailures: finalResult.failed > 0,
+            errors: finalResult.errors,
+          });
+          break;
+        }
+        if (job.status === 'failed') {
+          throw new Error(job.message || 'Sync failed');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      if (finalResult) {
+        const updated = finalResult.updated ?? finalResult.success ?? 0;
+        const failed = finalResult.failed ?? 0;
+        showToast(
+          failed
+            ? `Sync done: ${updated} updated, ${failed} failed.`
+            : `Sync done: ${updated} prices updated.`,
+          failed ? 'error' : 'success'
+        );
+        if (finalResult.errors?.length) console.warn('Sync errors:', finalResult.errors);
+      }
+      scheduleLoadProducts();
     } catch (err) {
+      setProgress({ status: err.message, detail: '', errors: [] });
       showToast(err.message, 'error');
     } finally {
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.textContent = '⟳ Sync Prices Now';
-      }, 3000);
+      const failed = finalResult?.failed ?? 0;
+      setTimeout(hideProgressModal, failed > 0 ? 6000 : 2500);
+      btn.disabled = false;
+      btn.textContent = '⟳ Sync Prices Now';
+      refreshOverview();
     }
   }
 
@@ -439,32 +1738,15 @@
     toastTimer = setTimeout(() => { toast.className = ''; }, 4000);
   }
 
-  // ── Utils ──────────────────────────────────────────────────────────────────
   function escHtml(str) {
     if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  checkStatus();
   loadProducts();
-
-  async function checkStatus() {
-    try {
-      const res = await fetch('/api/status');
-      const data = await res.json();
-      if (!data.connected) {
-        const banner = document.createElement('div');
-        banner.style.cssText = 'background:#7c2d12;border:1px solid #ea580c;color:#fff;padding:14px 24px;text-align:center;font-size:0.95rem;';
-        banner.innerHTML = '⚠️ Shopify not connected. <a href="/auth" style="color:#fbbf24;font-weight:700;">Click here to connect your store</a> before adding cards.';
-        document.body.insertBefore(banner, document.body.firstChild);
-      }
-    } catch (_) {}
-  }
+  refreshOverview();
+  setInterval(refreshOverview, 60000); // keep "time ago" and connection status fresh
 </script>
 </body>
 </html>

@@ -7,11 +7,71 @@
  * Or scheduled via server.js cron (runs daily at 6am)
  */
 
-const { searchCards, getCardDetails, closeBrowser } = require('./collectr');
-const { getManagedProducts, updateProductPrice } = require('./shopify');
+const { resolveCardForSync, closeBrowser } = require('./collectr');
+const { getManagedProducts, updateProductPrice, ensureProductCardFields, invalidateManagedProductsCache } = require('./shopify');
 
-async function syncAllPrices() {
+async function syncOneProduct(product, emit) {
+  const log = (payload) => {
+    if (typeof emit === 'function') emit(payload);
+  };
+
+  product = await ensureProductCardFields(product);
+
+  if (!product.cardNumber) {
+    throw new Error(
+      'Missing card number — add "Number: 125/159" in the product description or re-add from Collectr'
+    );
+  }
+  if (!product.subType) {
+    throw new Error(
+      'Missing finish — add "Finish: Normal" in the description, include " — Normal" in the title, or re-add from Collectr'
+    );
+  }
+
+  log({
+    type: 'progress',
+    title: product.title,
+    phase: 'collectr',
+    detail: `Finding #${product.cardNumber} · ${product.subType}`,
+  });
+
+  const freshCard = await resolveCardForSync({
+    collectrId: product.collectrId,
+    collectrUrl: product.collectrUrl,
+    title: product.title,
+    subType: product.subType,
+    cardNumber: product.cardNumber,
+  });
+
+  if (!freshCard || freshCard.price === 0) {
+    throw new Error(
+      `No Collectr price for #${product.cardNumber} · ${product.subType} — check number and finish match Collectr`
+    );
+  }
+
+  log({ type: 'progress', title: product.title, phase: 'shopify' });
+
+  const newPrice = await updateProductPrice(
+    product.productId,
+    product.variantId,
+    freshCard,
+    product.multiplier
+  );
+
+  console.log(
+    `  ✓ ${product.title}: $${newPrice} (#${product.cardNumber} ${product.subType}, market $${freshCard.price})`
+  );
+
+  return { newPrice, freshCard };
+}
+
+async function syncAllPrices(onProgress) {
+  const emit = (payload) => {
+    if (typeof onProgress === 'function') onProgress(payload);
+  };
+
   console.log(`[${new Date().toISOString()}] Starting price sync...`);
+  emit({ type: 'phase', message: 'Loading products from Shopify…' });
 
   let products;
   try {
@@ -19,60 +79,76 @@ async function syncAllPrices() {
     console.log(`Found ${products.length} managed products to sync.`);
   } catch (err) {
     console.error('Failed to fetch managed products from Shopify:', err.message);
-    process.exit(1);
+    if (require.main === module) process.exit(1);
+    throw err;
   }
 
   if (products.length === 0) {
     console.log('No managed products found. Add cards via the admin UI first.');
-    return;
+    emit({ type: 'done', total: 0, updated: 0, failed: 0, errors: [] });
+    return { success: 0, failed: 0, errors: [] };
   }
 
+  const total = products.length;
   const results = { success: 0, failed: 0, errors: [] };
+  emit({ type: 'start', total });
 
-  for (const product of products) {
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i];
+    const current = i + 1;
+
+    emit({
+      type: 'progress',
+      current,
+      total,
+      title: product.title,
+      phase: 'collectr',
+      detail: product.cardNumber
+        ? `#${product.cardNumber} · ${product.subType || '?'}`
+        : 'missing card number',
+      updated: results.success,
+      failed: results.failed,
+    });
+
     try {
-      console.log(`Syncing: ${product.title}`);
+      console.log(`Syncing: ${product.title} (#${product.cardNumber || '?'} · ${product.subType || '?'})`);
 
-      let freshCard = null;
+      const { newPrice } = await syncOneProduct(product, emit);
 
-      // Prefer fetching by Collectr URL (most accurate)
-      if (product.collectrUrl) {
-        freshCard = await getCardDetails(product.collectrUrl);
-      }
-
-      // Fallback: search by title
-      if (!freshCard && product.title) {
-        const searchResults = await searchCards(product.title);
-        if (searchResults.length > 0) {
-          // Pick the best match (first result)
-          freshCard = searchResults[0];
-        }
-      }
-
-      if (!freshCard || freshCard.price === 0) {
-        throw new Error('Could not fetch price from Collectr');
-      }
-
-      const newPrice = await updateProductPrice(
-        product.productId,
-        product.variantId,
-        freshCard,
-        product.multiplier
-      );
-
-      console.log(`  ✓ ${product.title}: $${newPrice} (market: $${freshCard.price}, multiplier: ${product.multiplier}x)`);
       results.success++;
 
-      // Small delay to avoid hammering Collectr
+      emit({
+        type: 'item',
+        current,
+        total,
+        title: product.title,
+        ok: true,
+        price: newPrice,
+        updated: results.success,
+        failed: results.failed,
+      });
+
       await sleep(1500);
     } catch (err) {
       console.error(`  ✗ ${product.title}: ${err.message}`);
       results.failed++;
       results.errors.push({ product: product.title, error: err.message });
+
+      emit({
+        type: 'item',
+        current,
+        total,
+        title: product.title,
+        ok: false,
+        error: err.message,
+        updated: results.success,
+        failed: results.failed,
+      });
     }
   }
 
   await closeBrowser();
+  invalidateManagedProductsCache();
 
   console.log(`\nSync complete: ${results.success} updated, ${results.failed} failed.`);
   if (results.errors.length > 0) {
@@ -80,14 +156,24 @@ async function syncAllPrices() {
     results.errors.forEach((e) => console.log(`  - ${e.product}: ${e.error}`));
   }
 
+  emit({ type: 'done', total, updated: results.success, failed: results.failed, errors: results.errors });
   return results;
+}
+
+async function syncProductById(productId) {
+  const products = await getManagedProducts();
+  const product = products.find((p) => String(p.productId) === String(productId));
+  if (!product) throw new Error('Managed product not found');
+  const { newPrice, freshCard } = await syncOneProduct(product);
+  await closeBrowser();
+  invalidateManagedProductsCache();
+  return { product, newPrice, freshCard };
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Run directly if called as a script
 if (require.main === module) {
   syncAllPrices()
     .then(() => process.exit(0))
@@ -97,4 +183,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { syncAllPrices };
+module.exports = { syncAllPrices, syncOneProduct, syncProductById };
