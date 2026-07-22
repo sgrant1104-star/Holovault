@@ -91,18 +91,13 @@ app.get('/auth/callback', async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
-    // Save token to config.json
-    config.shopify.accessToken = accessToken;
-    fs.writeFileSync(
-      path.join(__dirname, 'config.json'),
-      JSON.stringify(config, null, 2)
-    );
+    console.log('[Auth] ✓ Token exchange succeeded. Set this as the SHOPIFY_TOKEN Railway variable:');
+    console.log(`[Auth] SHOPIFY_TOKEN=${accessToken}`);
 
-    console.log('[Auth] ✓ Access token saved to config.json');
     res.send(`
       <html><body style="font-family:sans-serif;padding:40px;background:#0f0f0f;color:#e0e0e0">
         <h2 style="color:#4ade80">✓ Shopify connected successfully!</h2>
-        <p>Your access token has been saved.</p>
+        <p>Check the server logs for the access token, then set it as the <code>SHOPIFY_TOKEN</code> Railway variable.</p>
         <a href="/" style="color:#60a5fa">← Go to Card Manager</a>
       </body></html>
     `);
