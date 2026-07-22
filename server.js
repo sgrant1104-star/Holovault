@@ -29,9 +29,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── OAuth ─────────────────────────────────────────────────────────────────────
 
 const SCOPES = 'read_products,write_products';
-const REDIRECT_URI = 'http://localhost:3000/auth/callback';
 
-// Step 1 — Start OAuth: visit http://localhost:3000/auth
+function getRedirectUri() {
+  const appUrl = process.env.APP_URL
+    || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null)
+    || `http://localhost:${process.env.PORT || 3000}`;
+  return `${appUrl.replace(/\/$/, '')}/auth/callback`;
+}
+
+// Step 1 — Start OAuth: visit /auth on wherever this app is deployed
 app.get('/auth', (req, res) => {
   const config = getConfig();
   const state = crypto.randomBytes(16).toString('hex');
@@ -39,7 +45,7 @@ app.get('/auth', (req, res) => {
     `https://${config.shopify.store}/admin/oauth/authorize` +
     `?client_id=${config.shopify.clientId}` +
     `&scope=${SCOPES}` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&redirect_uri=${encodeURIComponent(getRedirectUri())}` +
     `&state=${state}`;
 
   // Store state in a temp file to verify on callback
