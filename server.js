@@ -17,20 +17,10 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const cron = require('node-cron');
+const { getConfig } = require('./config');
 const { searchCards, closeBrowser } = require('./collectr');
 const { createProduct, getManagedProducts, setMultiplier } = require('./shopify');
 const { syncAllPrices } = require('./sync-prices');
-
-function getConfig() {
-  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
-  // Allow environment variables to override config values
-  if (process.env.SHOPIFY_TOKEN) raw.shopify.accessToken = process.env.SHOPIFY_TOKEN;
-  if (process.env.SHOPIFY_STORE) raw.shopify.store = process.env.SHOPIFY_STORE;
-  if (process.env.SHOPIFY_CLIENT_ID) raw.shopify.clientId = process.env.SHOPIFY_CLIENT_ID;
-  if (process.env.SHOPIFY_SECRET) raw.shopify.clientSecret = process.env.SHOPIFY_SECRET;
-  if (process.env.SHOPIFY_API_VERSION) raw.shopify.apiVersion = process.env.SHOPIFY_API_VERSION;
-  return raw;
-}
 
 const app = express();
 app.use(express.json());

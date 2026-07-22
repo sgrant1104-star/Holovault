@@ -4,18 +4,18 @@
  */
 
 const axios = require('axios');
-const config = require('./config.json');
+const { getConfig } = require('./config');
 
-const { store, accessToken, apiVersion } = config.shopify;
-const BASE = `https://${store}/admin/api/${apiVersion}`;
-
-const client = axios.create({
-  baseURL: BASE,
-  headers: {
-    'X-Shopify-Access-Token': accessToken,
-    'Content-Type': 'application/json',
-  },
-});
+function getClient() {
+  const { store, accessToken, apiVersion } = getConfig().shopify;
+  return axios.create({
+    baseURL: `https://${store}/admin/api/${apiVersion}`,
+    headers: {
+      'X-Shopify-Access-Token': accessToken,
+      'Content-Type': 'application/json',
+    },
+  });
+}
 
 /**
  * Create a new product in Shopify from Collectr card data.
@@ -23,6 +23,7 @@ const client = axios.create({
  * @param {number} multiplier - price multiplier (e.g. 0.8 = 80% of market)
  */
 async function createProduct(card, multiplier = 1.0) {
+  const client = getClient();
   const finalPrice = (card.price * multiplier).toFixed(2);
 
   const body = {
@@ -61,6 +62,7 @@ async function createProduct(card, multiplier = 1.0) {
  * @param {number} multiplier - per-card multiplier
  */
 async function updateProductPrice(productId, variantId, card, multiplier = 1.0) {
+  const client = getClient();
   const finalPrice = (card.price * multiplier).toFixed(2);
 
   await client.put(`/variants/${variantId}.json`, {
@@ -81,6 +83,7 @@ async function updateProductPrice(productId, variantId, card, multiplier = 1.0) 
  * These are used by the theme to show the price badge.
  */
 async function setProductMetafields(productId, card, multiplier) {
+  const client = getClient();
   const metafields = [
     {
       namespace: 'custom',
@@ -140,18 +143,20 @@ async function setProductMetafields(productId, card, multiplier) {
  * Get all products that have a collectr_id metafield (i.e. managed by this tool).
  */
 async function getManagedProducts() {
+  const client = getClient();
+  const base = client.defaults.baseURL;
   const products = [];
   let url = '/products.json?limit=250&fields=id,title,variants,metafields';
-  
+
   while (url) {
-    const res = await client.get(url.startsWith('/') ? url : url.replace(BASE, ''));
+    const res = await client.get(url.startsWith('/') ? url : url.replace(base, ''));
     products.push(...res.data.products);
 
     // Handle pagination
     const linkHeader = res.headers['link'];
     if (linkHeader && linkHeader.includes('rel="next"')) {
       const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-      url = match ? match[1].replace(BASE, '') : null;
+      url = match ? match[1].replace(base, '') : null;
     } else {
       url = null;
     }
@@ -186,6 +191,7 @@ async function getManagedProducts() {
  * Update the multiplier for a specific product.
  */
 async function setMultiplier(productId, multiplier) {
+  const client = getClient();
   await client.post(`/products/${productId}/metafields.json`, {
     metafield: {
       namespace: 'collectr',
