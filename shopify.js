@@ -516,6 +516,16 @@ async function createProduct(card, multiplier = 1.0, options = {}) {
  * and previously this just crashed the request with a raw "Throttled"
  * error. It was also being mislabeled as a 403 permission problem below,
  * which sent past troubleshooting down the wrong path more than once.
+ *
+ * Every response (throttled or not) carries extensions.cost.throttleStatus,
+ * telling us exactly how many points are left in the bucket and how fast
+ * it refills. We track the last reading and, before firing the *next*
+ * call, project how much should have restored by now and proactively wait
+ * if a repeat of the last query's cost would drain the bucket — instead of
+ * firing immediately and only backing off after Shopify actually throttles
+ * us. This matters most for paginated calls like fetchManagedProductsFromShopify,
+ * where each page costs ~500 points (nested variants + several metafields
+ * per product) against a 1000-point bucket that only restores 50 pts/sec.
  */
 const GRAPHQL_THROTTLE_MAX_RETRIES = 6;
 
@@ -523,10 +533,46 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let lastCostSnapshot = null; // { currentlyAvailable, maximumAvailable, restoreRate, cost, observedAt }
+
+function recordCostSnapshot(costExt) {
+  const throttleStatus = costExt?.throttleStatus;
+  if (!throttleStatus) return;
+  lastCostSnapshot = {
+    currentlyAvailable: throttleStatus.currentlyAvailable,
+    maximumAvailable: throttleStatus.maximumAvailable ?? 1000,
+    restoreRate: throttleStatus.restoreRate || 50,
+    cost: costExt.actualQueryCost ?? costExt.requestedQueryCost ?? 0,
+    observedAt: Date.now(),
+  };
+}
+
+/**
+ * Estimate currently-available budget by projecting the last known reading
+ * forward with its restore rate, then proactively wait if repeating that
+ * same query would likely exceed it. Same-shaped repeated calls (e.g. the
+ * next page of a pagination loop) tend to cost about what the last one did,
+ * so the last actual/requested cost is a good proxy for the upcoming one.
+ */
+async function waitForGraphqlBudget() {
+  if (!lastCostSnapshot) return;
+  const { currentlyAvailable, maximumAvailable, restoreRate, cost, observedAt } = lastCostSnapshot;
+  const elapsedSec = (Date.now() - observedAt) / 1000;
+  const projectedAvailable = Math.min(maximumAvailable, currentlyAvailable + elapsedSec * restoreRate);
+  const shortfall = cost - projectedAvailable;
+  if (shortfall > 0) {
+    const waitMs = Math.ceil((shortfall / restoreRate) * 1000) + 100;
+    console.log(`[Shopify] GraphQL budget low (~${Math.round(projectedAvailable)}/${maximumAvailable}), pacing ${waitMs}ms before next call`);
+    await sleep(waitMs);
+  }
+}
+
 async function shopifyGraphql(client, query, variables = {}) {
   for (let attempt = 0; attempt <= GRAPHQL_THROTTLE_MAX_RETRIES; attempt++) {
+    await waitForGraphqlBudget();
     const res = await client.post('/graphql.json', { query, variables });
     const errors = res.data?.errors;
+    recordCostSnapshot(res.data?.extensions?.cost);
 
     if (errors?.length) {
       const isThrottled = errors.some(
