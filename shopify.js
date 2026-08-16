@@ -217,6 +217,30 @@ async function setInventoryQuantity(inventoryItemId, quantity) {
   return Math.max(0, quantity);
 }
 
+/**
+ * Set a managed product's stock to an exact quantity from its Shopify
+ * product id — resolves the variant/inventory item itself, so callers (the
+ * admin UI) only need the product id already shown on the card.
+ */
+async function setProductQuantity(productId, quantity) {
+  const { client } = await getClient();
+  const pid = normalizeLegacyResourceId(productId);
+  if (!pid) throw new Error('Invalid product id');
+
+  const res = await client.get(`/products/${pid}.json`);
+  const variant = res.data.product?.variants?.[0];
+  if (!variant) throw new Error('Product or variant not found');
+
+  const inventoryItemId = await resolveInventoryItemId(client, pid, variant.id);
+  if (!inventoryItemId) {
+    throw new Error(`Could not resolve inventory item — ${STOCK_SCOPE_HINT}`);
+  }
+
+  const newQty = await setInventoryQuantity(inventoryItemId, quantity);
+  invalidateManagedProductsCache();
+  return newQty;
+}
+
 /** After product create, Shopify may not return inventory_item_id until tracking is enabled. */
 async function resolveInventoryItemId(client, productId, variantId) {
   const pid = normalizeLegacyResourceId(productId);
@@ -1627,6 +1651,7 @@ module.exports = {
   normalizeSubType,
   setMultiplier,
   setMultiplierBulk,
+  setProductQuantity,
   deleteProduct,
   deleteAllManagedProducts,
   ensureSetSmartCollection,

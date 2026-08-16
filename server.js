@@ -17,6 +17,7 @@ const {
   invalidateManagedProductsCache,
   setMultiplier,
   setMultiplierBulk,
+  setProductQuantity,
   deleteProduct,
   deleteAllManagedProducts,
   formatShopifyError,
@@ -333,6 +334,23 @@ app.patch('/api/products/:id/multiplier', requireToken, async (req, res) => {
   } catch (err) {
     console.error('Multiplier error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/products/:id/quantity', requireToken, async (req, res) => {
+  const { id } = req.params;
+  const { quantity } = req.body;
+  const qty = parseInt(quantity, 10);
+  if (quantity == null || isNaN(qty) || qty < 0) {
+    return res.status(400).json({ error: 'Valid non-negative quantity required.' });
+  }
+
+  try {
+    const newQty = await setProductQuantity(id, qty);
+    res.json({ success: true, quantity: newQty });
+  } catch (err) {
+    console.error('Quantity error:', err.message);
+    res.status(500).json({ error: formatShopifyError(err) });
   }
 });
 

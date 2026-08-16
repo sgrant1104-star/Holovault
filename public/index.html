@@ -1364,7 +1364,6 @@
         ${productThumbHtml(p)}
         <div class="p-body">
           <div class="p-title" title="${escHtml(p.title)}">${escHtml(p.title)}</div>
-          <div class="p-qty">Stock ${p.inventoryQuantity != null ? p.inventoryQuantity : '—'}</div>
           ${p.cardNumber ? `<div class="p-num">#${escHtml(p.cardNumber)} · ${escHtml(p.subType || '')}</div>` : ''}
         </div>
         <div class="p-meta">
@@ -1373,6 +1372,11 @@
           <input class="p-mult-input" type="number" id="pmult-${p.productId}" value="${p.multiplier}" min="0.01" max="10" step="0.05" />
           <button class="p-save-btn" onclick="saveMultiplier('${p.productId}')">Save</button>
           <button class="p-delete-btn" onclick="deleteProduct('${p.productId}', '${escHtml(p.title).replace(/'/g, "\\'")}')" title="Delete">✕</button>
+        </div>
+        <div class="p-meta">
+          <span class="p-mult-label">Stock</span>
+          <input class="p-mult-input" type="number" id="pqty-${p.productId}" value="${p.inventoryQuantity != null ? p.inventoryQuantity : 0}" min="0" step="1" />
+          <button class="p-save-btn" onclick="saveQuantity('${p.productId}')">Save</button>
         </div>
       </div>`).join('');
 
@@ -1623,6 +1627,28 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       showToast('Multiplier updated!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function saveQuantity(productId) {
+    const input = document.getElementById(`pqty-${productId}`);
+    const quantity = parseInt(input.value, 10);
+    if (isNaN(quantity) || quantity < 0) return showToast('Invalid quantity.', 'error');
+    try {
+      const res = await fetch(`/api/products/${productId}/quantity`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      input.value = data.quantity;
+      const idx = managedProducts.findIndex((p) => String(p.productId) === String(productId));
+      if (idx >= 0) managedProducts[idx].inventoryQuantity = data.quantity;
+      updateOverviewFromProducts();
+      showToast(`Stock updated to ${data.quantity}!`, 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
