@@ -14,7 +14,7 @@
 const nodemailer = require('nodemailer');
 const { getClient, shopifyGraphql } = require('./shopify');
 
-const BUYBACK_RATE = 0.75; // flat 75% of Collectr market price
+const BUYBACK_RATE = 0.8; // flat 80% of Collectr market price
 const METAOBJECT_TYPE = 'card_buyback_submission';
 
 let definitionEnsured = false;
@@ -51,7 +51,7 @@ async function ensureBuybackMetaobjectDefinition() {
     { key: 'card_image_url', name: 'Card image', type: 'single_line_text_field' },
     { key: 'collectr_id', name: 'Collectr ID', type: 'single_line_text_field' },
     { key: 'market_price', name: 'Market price (NZD)', type: 'number_decimal' },
-    { key: 'offer_price', name: 'Offer price (NZD, 75%)', type: 'number_decimal' },
+    { key: 'offer_price', name: 'Offer price (NZD, 80%)', type: 'number_decimal' },
     { key: 'condition_notes', name: 'Condition notes', type: 'multi_line_text_field' },
     { key: 'status', name: 'Status', type: 'single_line_text_field' },
     { key: 'accepted_offer', name: 'Customer accepted offer', type: 'boolean' },
@@ -193,7 +193,7 @@ async function uploadImageToShopify(dataUri, filename) {
   return created.fileCreate.files[0].id;
 }
 
-/** Always 75% of market price, rounded to cents. Server-computed — never trust a client-sent offer price. */
+/** Always 80% of market price, rounded to cents. Server-computed — never trust a client-sent offer price. */
 function calculateOffer(marketPrice) {
   const price = parseFloat(marketPrice) || 0;
   return Math.round(price * BUYBACK_RATE * 100) / 100;
@@ -277,7 +277,7 @@ async function notifyOwnerOfSubmission(payload, offerPrice) {
   const text = [
     `Card: ${payload.cardName} (${payload.cardSet || ''} ${payload.cardNumber || ''} ${payload.cardFinish || ''})`.trim(),
     `Market price: $${payload.marketPrice}`,
-    `Offer (75%): $${offerPrice}`,
+    `Offer (80%): $${offerPrice}`,
     '',
     `Customer: ${payload.customerName}`,
     `Email: ${payload.customerEmail}`,
