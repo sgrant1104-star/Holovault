@@ -35,6 +35,7 @@ async function ensureBuybackMetaobjectDefinition() {
   `;
   const existing = await shopifyGraphql(client, checkQuery, { type: METAOBJECT_TYPE });
   if (existing?.metaobjectDefinitionByType?.id) {
+    await ensurePhotoFields();
     definitionEnsured = true;
     return;
   }
@@ -57,6 +58,8 @@ async function ensureBuybackMetaobjectDefinition() {
     { key: 'accepted_at', name: 'Accepted at', type: 'date_time' },
     { key: 'submitted_at', name: 'Submitted at', type: 'date_time' },
     { key: 'admin_notes', name: 'Admin notes', type: 'multi_line_text_field' },
+    { key: 'front_photo', name: 'Front photo', type: 'file_reference' },
+    { key: 'back_photo', name: 'Back photo', type: 'file_reference' },
   ];
 
   const mutation = `
@@ -83,6 +86,113 @@ async function ensureBuybackMetaobjectDefinition() {
   definitionEnsured = true;
 }
 
+/**
+ * The definition already existed in production before photo fields were
+ * added. Rather than recreate it (which would fail — Shopify won't let you
+ * duplicate a type), add the two new fields to the existing definition if
+ * they're not already there. Safe to call repeatedly — checks first.
+ */
+async function ensurePhotoFields() {
+  const { client } = await getClient();
+  const query = `
+    query BuybackDefFields($type: String!) {
+      metaobjectDefinitionByType(type: $type) {
+        id
+        fieldDefinitions { key }
+      }
+    }
+  `;
+  const data = await shopifyGraphql(client, query, { type: METAOBJECT_TYPE });
+  const def = data?.metaobjectDefinitionByType;
+  if (!def) return;
+
+  const haveKeys = new Set((def.fieldDefinitions || []).map((f) => f.key));
+  const toAdd = [];
+  if (!haveKeys.has('front_photo')) {
+    toAdd.push({ create: { key: 'front_photo', name: 'Front photo', type: 'file_reference' } });
+  }
+  if (!haveKeys.has('back_photo')) {
+    toAdd.push({ create: { key: 'back_photo', name: 'Back photo', type: 'file_reference' } });
+  }
+  if (!toAdd.length) return;
+
+  const mutation = `
+    mutation AddPhotoFields($id: ID!, $definition: MetaobjectDefinitionUpdateInput!) {
+      metaobjectDefinitionUpdate(id: $id, definition: $definition) {
+        metaobjectDefinition { id }
+        userErrors { field message }
+      }
+    }
+  `;
+  const result = await shopifyGraphql(client, mutation, {
+    id: def.id,
+    definition: { fieldDefinitions: toAdd },
+  });
+  const errors = result?.metaobjectDefinitionUpdate?.userErrors;
+  if (errors?.length) {
+    console.warn('[Buyback] Could not add photo fields:', errors.map((e) => e.message).join('; '));
+  } else {
+    console.log('[Buyback] Added front_photo/back_photo fields to existing definition');
+  }
+}
+
+/**
+ * Upload a data-URI image (from the browser's FileReader) to Shopify Files
+ * via the staged-upload flow, and return the resulting file GID once it's
+ * ready. Used for the front/back condition photos.
+ */
+async function uploadImageToShopify(dataUri, filename) {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUri || '');
+  if (!match) throw new Error('Invalid image data');
+  const mimeType = match[1];
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 8 * 1024 * 1024) throw new Error('Image too large (max 8MB)');
+
+  const { client } = await getClient();
+
+  const stagedMutation = `
+    mutation StagedUploadsCreate($input: [StagedUploadInput!]!) {
+      stagedUploadsCreate(input: $input) {
+        stagedTargets { url resourceUrl parameters { name value } }
+        userErrors { field message }
+      }
+    }
+  `;
+  const staged = await shopifyGraphql(client, stagedMutation, {
+    input: [{ filename, mimeType, httpMethod: 'POST', resource: 'FILE', fileSize: String(buffer.length) }],
+  });
+  const stagedErrors = staged?.stagedUploadsCreate?.userErrors;
+  if (stagedErrors?.length) {
+    throw new Error('Staged upload failed: ' + stagedErrors.map((e) => e.message).join('; '));
+  }
+  const target = staged.stagedUploadsCreate.stagedTargets[0];
+
+  const form = new FormData();
+  for (const p of target.parameters) form.append(p.name, p.value);
+  form.append('file', new Blob([buffer], { type: mimeType }), filename);
+  const uploadRes = await fetch(target.url, { method: 'POST', body: form });
+  if (uploadRes.status >= 300) {
+    throw new Error('Image upload to Shopify failed (' + uploadRes.status + ')');
+  }
+
+  const fileCreateMutation = `
+    mutation BuybackFileCreate($files: [FileCreateInput!]!) {
+      fileCreate(files: $files) {
+        files { id fileStatus }
+        userErrors { field message }
+      }
+    }
+  `;
+  const created = await shopifyGraphql(client, fileCreateMutation, {
+    files: [{ alt: filename, contentType: 'IMAGE', originalSource: target.resourceUrl }],
+  });
+  const createErrors = created?.fileCreate?.userErrors;
+  if (createErrors?.length) {
+    throw new Error('File create failed: ' + createErrors.map((e) => e.message).join('; '));
+  }
+  return created.fileCreate.files[0].id;
+}
+
 /** Always 75% of market price, rounded to cents. Server-computed — never trust a client-sent offer price. */
 function calculateOffer(marketPrice) {
   const price = parseFloat(marketPrice) || 0;
@@ -95,6 +205,15 @@ async function createSubmission(payload) {
 
   const now = new Date().toISOString();
   const offerPrice = calculateOffer(payload.marketPrice);
+
+  const [frontPhotoId, backPhotoId] = await Promise.all([
+    payload.frontPhotoDataUri
+      ? uploadImageToShopify(payload.frontPhotoDataUri, 'buyback-front-' + Date.now() + '.jpg')
+      : null,
+    payload.backPhotoDataUri
+      ? uploadImageToShopify(payload.backPhotoDataUri, 'buyback-back-' + Date.now() + '.jpg')
+      : null,
+  ]);
 
   const fields = [
     { key: 'customer_name', value: payload.customerName || '' },
@@ -115,6 +234,8 @@ async function createSubmission(payload) {
     { key: 'submitted_at', value: now },
     { key: 'admin_notes', value: '' },
   ];
+  if (frontPhotoId) fields.push({ key: 'front_photo', value: frontPhotoId });
+  if (backPhotoId) fields.push({ key: 'back_photo', value: backPhotoId });
 
   const mutation = `
     mutation CreateSubmission($metaobject: MetaobjectCreateInput!) {

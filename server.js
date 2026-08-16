@@ -25,6 +25,7 @@ const {
   getAuthStatus,
   ensureAccessToken,
   warnMissingShopifyScopes,
+  getUsdToNzdRate,
 } = require('./shopify');
 const { syncAllPrices, syncProductById } = require('./sync-prices');
 const buyback = require('./buyback');
@@ -158,10 +159,16 @@ app.get('/api/buyback/search', async (req, res) => {
   if (query.length < 2) return res.status(400).json({ error: 'Query must be at least 2 characters.' });
 
   try {
-    const cards = await searchCards(query);
+    const [cards, usdRate] = await Promise.all([searchCards(query), getUsdToNzdRate()]);
+    // Collectr prices are USD — convert to NZD here so every price shown to
+    // the customer, and everything downstream (accept → submit → offer
+    // calculation), is consistently NZD, matching the rest of the site.
     const withOffers = cards
       .filter((c) => c.isCard !== false && c.price > 0)
-      .map((c) => ({ ...c, offerPrice: buyback.calculateOffer(c.price) }));
+      .map((c) => {
+        const priceNzd = Math.round(c.price * usdRate * 100) / 100;
+        return { ...c, price: priceNzd, offerPrice: buyback.calculateOffer(priceNzd) };
+      });
     res.json({ cards: withOffers, rate: buyback.BUYBACK_RATE });
   } catch (err) {
     console.error('[Buyback search] Error:', err.message);
@@ -170,7 +177,7 @@ app.get('/api/buyback/search', async (req, res) => {
 });
 
 app.post('/api/buyback/submit', rateLimitBuybackSubmit, async (req, res) => {
-  const { card, customer, conditionNotes, acceptedOffer } = req.body || {};
+  const { card, customer, conditionNotes, acceptedOffer, frontPhoto, backPhoto } = req.body || {};
 
   if (acceptedOffer !== true) {
     return res.status(400).json({ error: 'You must accept the offer price before submitting.' });
@@ -185,6 +192,9 @@ app.post('/api/buyback/submit', rateLimitBuybackSubmit, async (req, res) => {
   if (!emailOk) {
     return res.status(400).json({ error: 'Please enter a valid email address.' });
   }
+  if (!frontPhoto || !backPhoto) {
+    return res.status(400).json({ error: 'Please upload a photo of both the front and back of the card.' });
+  }
 
   const payload = {
     customerName: customer.name,
@@ -195,6 +205,8 @@ app.post('/api/buyback/submit', rateLimitBuybackSubmit, async (req, res) => {
     cardNumber: card.cardNumber || '',
     cardFinish: card.subType || '',
     cardImageUrl: card.imageUrl || '',
+    frontPhotoDataUri: frontPhoto,
+    backPhotoDataUri: backPhoto,
     collectrId: card.collectrId || '',
     marketPrice: parseFloat(card.price) || 0,
     conditionNotes: (conditionNotes || '').slice(0, 2000),
