@@ -1607,6 +1607,8 @@ async function deleteAllManagedProducts() {
 }
 
 module.exports = {
+  getClient,
+  shopifyGraphql,
   createProduct,
   addOrUpdateProduct,
   bulkAddCards,

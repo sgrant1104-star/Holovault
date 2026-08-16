@@ -27,6 +27,7 @@ const {
   warnMissingShopifyScopes,
 } = require('./shopify');
 const { syncAllPrices, syncProductById } = require('./sync-prices');
+const buyback = require('./buyback');
 
 function getConfig() {
   return {
@@ -50,6 +51,49 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Buyback CORS ──────────────────────────────────────────────────────────────
+// Only the buyback endpoints are meant to be called from the storefront
+// (a different origin than this app). Every other route here stays
+// same-origin-only by default — deliberately not opening CORS globally,
+// since several admin routes (e.g. delete-all) have no auth beyond "is
+// Shopify configured."
+const BUYBACK_ALLOWED_ORIGINS = new Set([
+  'https://holovault.co.nz',
+  'https://www.holovault.co.nz',
+  `https://${process.env.SHOPIFY_STORE || ''}`,
+]);
+
+app.use('/api/buyback', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && BUYBACK_ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+// Lightweight in-memory rate limit for the public submit endpoint — resets
+// on redeploy, which is fine; this is an abuse deterrent, not a security
+// boundary (the real safeguard is that a human reviews every submission
+// before any money moves).
+const submitAttempts = new Map(); // ip -> [timestamps]
+const SUBMIT_WINDOW_MS = 60 * 60 * 1000;
+const SUBMIT_MAX_PER_WINDOW = 5;
+
+function rateLimitBuybackSubmit(req, res, next) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+  const now = Date.now();
+  const attempts = (submitAttempts.get(ip) || []).filter((t) => now - t < SUBMIT_WINDOW_MS);
+  if (attempts.length >= SUBMIT_MAX_PER_WINDOW) {
+    return res.status(429).json({ error: 'Too many submissions from this address. Please try again later.' });
+  }
+  attempts.push(now);
+  submitAttempts.set(ip, attempts);
+  next();
+}
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -101,6 +145,72 @@ app.get('/api/search', async (req, res) => {
   } catch (err) {
     console.error('[Search] Error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Buyback ("sell your cards to us") ───────────────────────────────────────
+// Public — no requireToken. Customer-facing search + submit for the buyback
+// flow. Offer price is always server-computed (75% of Collectr market price)
+// so a tampered client-side number can never affect what gets reviewed.
+
+app.get('/api/buyback/search', async (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (query.length < 2) return res.status(400).json({ error: 'Query must be at least 2 characters.' });
+
+  try {
+    const cards = await searchCards(query);
+    const withOffers = cards
+      .filter((c) => c.isCard !== false && c.price > 0)
+      .map((c) => ({ ...c, offerPrice: buyback.calculateOffer(c.price) }));
+    res.json({ cards: withOffers, rate: buyback.BUYBACK_RATE });
+  } catch (err) {
+    console.error('[Buyback search] Error:', err.message);
+    res.status(500).json({ error: 'Search failed. Please try again.' });
+  }
+});
+
+app.post('/api/buyback/submit', rateLimitBuybackSubmit, async (req, res) => {
+  const { card, customer, conditionNotes, acceptedOffer } = req.body || {};
+
+  if (acceptedOffer !== true) {
+    return res.status(400).json({ error: 'You must accept the offer price before submitting.' });
+  }
+  if (!card || !card.name || !(parseFloat(card.price) > 0)) {
+    return res.status(400).json({ error: 'Card details are required.' });
+  }
+  if (!customer || !customer.name || !customer.email) {
+    return res.status(400).json({ error: 'Name and email are required.' });
+  }
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email);
+  if (!emailOk) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  const payload = {
+    customerName: customer.name,
+    customerEmail: customer.email,
+    customerPhone: customer.phone || '',
+    cardName: card.name,
+    cardSet: card.setName || '',
+    cardNumber: card.cardNumber || '',
+    cardFinish: card.subType || '',
+    cardImageUrl: card.imageUrl || '',
+    collectrId: card.collectrId || '',
+    marketPrice: parseFloat(card.price) || 0,
+    conditionNotes: (conditionNotes || '').slice(0, 2000),
+  };
+
+  try {
+    const submission = await buyback.createSubmission(payload);
+    buyback.notifyOwnerOfSubmission(payload, submission.offerPrice).catch(() => {});
+    res.json({
+      success: true,
+      offerPrice: submission.offerPrice,
+      message: "Thanks — we've received your submission and will review it shortly.",
+    });
+  } catch (err) {
+    console.error('[Buyback submit] Error:', err.message);
+    res.status(500).json({ error: 'Could not submit right now. Please try again shortly.' });
   }
 });
 
@@ -494,6 +604,12 @@ app.listen(PORT, async () => {
       console.log(`Daily sync scheduled: ${s.cronSchedule}`);
     } catch (err) {
       console.log('⚠️  Shopify auth failed:', err.message);
+    }
+
+    try {
+      await buyback.ensureBuybackMetaobjectDefinition();
+    } catch (err) {
+      console.warn('[Buyback] Metaobject definition setup skipped:', err.message);
     }
   }
 });
